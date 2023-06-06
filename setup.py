@@ -27,5 +27,5 @@ setup(
     install_requires=reqs,
     dependency_links=dep_links,
     packages=find_packages(),
-    package_dir={'bb_rhythm': 'bb_rhythm/'}
+    package_dir={'bb_rhythm': 'bb_rhythm/source/'}
 )
