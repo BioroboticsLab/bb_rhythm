@@ -19,7 +19,7 @@ reqs += [url.split("egg=")[-1] for url in dep_links if "egg=" in url]
 
 setup(
     name='bb_rhythm',
-    version='0.0',
+    version='0.1',
     description='BeesBook rhythmicity, interaction, and behavior analysis',
     author='Julia Mellert, Weronika Klos',
     author_email='julia.mellert@fu-berlin.de',
