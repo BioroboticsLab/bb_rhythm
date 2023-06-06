@@ -5,7 +5,7 @@ import re
 import interactions
 
 
-def plot_body_location_of_interaction(df, trans=True, plot_dir=None, imshow=False, annotate=False, ax=None):
+def plot_body_location_of_interactions(df, trans=True, plot_dir=None, imshow=False, annotate=False, ax=None):
     # plot settings
     rcParams.update({'figure.autolayout': True})
     plt.rcParams['axes.facecolor'] = 'white'
@@ -58,4 +58,3 @@ def plot_body_location_of_interaction(df, trans=True, plot_dir=None, imshow=Fals
         plt.imshow()
     if plot_dir:
         plt.savefig(plot_dir)
-        
