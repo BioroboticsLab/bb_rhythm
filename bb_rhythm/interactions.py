@@ -226,21 +226,11 @@ def apply_transformation(interaction_df):
     transformed_coords_focal0 = interaction_df.apply(transform_coordinates, axis=1, result_type='expand', focal_bee=0)
     transformed_coords_focal1 = interaction_df.apply(transform_coordinates, axis=1, result_type='expand', focal_bee=1)
 
-    #interaction_df = interaction_df.drop(columns=['bee_id0', 'bee_id1',
-    #                                              'interaction_end',
-    #                                              'bee_id0_x_pos_start', 'bee_id0_y_pos_start',
-    #                                              'bee_id0_theta_start', 'bee_id1_x_pos_start',
-    #                                              'bee_id1_y_pos_start', 'bee_id1_theta_start',
-    #                                              'bee_id0_x_pos_end', 'bee_id0_y_pos_end',
-    #                                               'bee_id1_x_pos_end', #'bee_id0_theta_end',
-    #                                              'bee_id1_y_pos_end', #'bee_id1_theta_end',
-    #                                              None])
-
     # round coordinates to discretize positions
     transformed_coords_focal0 = transformed_coords_focal0.apply(round)
     transformed_coords_focal1 = transformed_coords_focal1.apply(round)
 
-    # append columns to original df
+    # append columns to original vel_change_matrix_df
     interaction_df[['focal0_x_trans', 'focal0_y_trans']] = transformed_coords_focal0
     interaction_df[['focal1_x_trans', 'focal1_y_trans']] = transformed_coords_focal1
 

@@ -1,11 +1,11 @@
 from matplotlib import rcParams
 import matplotlib.pyplot as plt
 import re
+import pandas as pd
+from . import interactions
 
-import interactions
 
-
-def plot_body_location_of_interactions(df, trans=True, plot_dir=None, imshow=False, annotate=False, ax=None):
+def plot_body_location_of_interactions(vel_change_matrix_df, plot_dir=None, imshow=False, annotate=False, ax=None):
     # plot settings
     rcParams.update({'figure.autolayout': True})
     plt.rcParams['axes.facecolor'] = 'white'
@@ -14,27 +14,19 @@ def plot_body_location_of_interactions(df, trans=True, plot_dir=None, imshow=Fal
     if ax is None:
         fig, ax = plt.figure(figsize=(12, 12))
 
-    # transform coordinates
-    if not trans:
-        df = interactions.apply_transformation(df)
-
-    # group velocity changes by coordinates
-    df_median_focal = df.groupby(['focal0_x_trans', 'focal0_y_trans'])["vel_change_bee_focal"].agg(
-        [('count', 'count'), ('vel_change_bee_focal', 'median')]).reset_index()
-
     # plot
     # set variables
-    scale_factor = 80
-    scatter = plt.scatter(x=df_median_focal.focal0_x_trans, y=df_median_focal.focal0_y_trans,
-                          c=df_median_focal.vel_change_bee_focal, cmap="viridis",
-                          s=df_median_focal["count"] / scale_factor, vmin=-0.02, vmax=0.16)
+    scale_factor = vel_change_matrix_df["count"].max()/1500
+    scatter = plt.scatter(x=vel_change_matrix_df.x, y=vel_change_matrix_df.y,
+                          c=vel_change_matrix_df.vel_change_bee_focal, cmap="viridis",
+                          s=vel_change_matrix_df["count"] / scale_factor, vmin=-0.02, vmax=0.16)
 
     # add annotations one by one with a loop
     if annotate:
-        df_median_focal.vel_change_bee_focal = df_median_focal.vel_change_bee_focal.round(2)
-        for line in range(0, df_median_focal.shape[0]):
-            plt.text(df_median_focal.focal0_x_trans[line], df_median_focal.focal0_y_trans[line],
-                     df_median_focal.vel_change_bee_focal[line], horizontalalignment='center', color='black')
+        vel_change_matrix_df.vel_change_bee_focal = vel_change_matrix_df.vel_change_bee_focal.round(2)
+        for line in range(0, vel_change_matrix_df.shape[0]):
+            plt.text(vel_change_matrix_df.x[line], vel_change_matrix_df.y[line],
+                     vel_change_matrix_df.vel_change_bee_focal[line], horizontalalignment='center', color='black')
 
     # produce a legend with the unique colors from the scatter
     legend1 = ax.legend(*scatter.legend_elements(),
@@ -58,3 +50,19 @@ def plot_body_location_of_interactions(df, trans=True, plot_dir=None, imshow=Fal
         plt.imshow()
     if plot_dir:
         plt.savefig(plot_dir)
+
+
+def transform_interaction_df_to_vel_change_matrix_df(vel_change_df_trans):
+    # group velocity changes by coordinates
+    vel_change_matrix_df = vel_change_df_trans.groupby(['focal0_x_trans', 'focal0_y_trans'])["vel_change_bee_focal"].agg(
+        [('count', 'count'), ('vel_change_bee_focal', 'median')]).reset_index()
+    vel_change_matrix_df.rename(columns={'focal0_x_trans': "x", 'focal0_y_trans': "y"})
+    return vel_change_matrix_df
+
+
+def transform_interaction_matrix_to_df(vel_change_matrix, count_matrix):
+    vel_change_matrix_df = pd.DataFrame(vel_change_matrix).stack().rename_axis(['y', 'x']).reset_index(name='vel_change_bee_focal')
+    count_matrix_df = pd.DataFrame(count_matrix).stack().rename_axis(['y', 'x']).reset_index(
+        name='count')
+    return pd.merge(vel_change_matrix_df, count_matrix_df, on=["y", "x"], how="outer")
+    
