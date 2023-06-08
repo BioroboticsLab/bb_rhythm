@@ -4,6 +4,7 @@ import numpy as np
 import itertools
 import pandas as pd
 from collections import defaultdict
+import cv2
 
 import bb_behavior.db
 
@@ -245,10 +246,12 @@ def get_dist_special_coord(row):
     return np.linalg.norm([row['x_1'], row['y_1']])
 
 
+def get_duration(df):
+    df["duration"] = (df['interaction_end'] - df['interaction_start']).dt.total_seconds()
+
+
 def concat_duration_time(combined_df, df):
-    combined_df["duration"] = pd.concat(
-        [df['interaction_end'] - df['interaction_start'],
-         df['interaction_end'] - df['interaction_start']]).dt.total_seconds()
+    combined_df["duration"] = pd.concat([df['duration'], df['duration']])
     combined_df["hour"] = pd.concat([df['interaction_start'].dt.hour, df['interaction_start'].dt.hour])
 
 
@@ -267,7 +270,7 @@ def concat_circ(combined_df, df):
     return combined_df
 
 
-def combine_bees_from_interaction_df_to_be_all_focal(df):
+def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
     combined_df = pd.DataFrame(
         columns=['circadianess_focal', 'circadianess_non_focal', 'age_focal', 'age_non_focal', 'vel_change_bee_non_focal',
                  'relative_change_bee_focal', 'relative_change_bee_non_focal', "duration", "hour"])
@@ -275,7 +278,7 @@ def combine_bees_from_interaction_df_to_be_all_focal(df):
     concat_ages(combined_df, df)
     concat_velocity_changes(combined_df, df)
     concat_duration_time(combined_df, df)
-    concat_position(combined_df, df)
+    concat_position(combined_df, df, trans=trans)
     return combined_df
 
 
@@ -290,19 +293,33 @@ def concat_velocity_changes(combined_df, df):
         [df['relative_change_bee_1'], df['relative_change_bee_0']])
 
 
-def concat_position(combined_df, df):
-    combined_df['x_pos_start_focal'] = pd.concat(
-        [df['bee_id0_x_pos_start'], df['bee_id1_x_pos_start']])
-    combined_df['x_pos_start_non_focal'] = pd.concat(
-        [df['bee_id1_x_pos_start'], df['bee_id0_x_pos_start']])
-    combined_df['y_pos_start_focal'] = pd.concat(
-        [df['bee_id0_y_pos_start'], df['bee_id1_y_pos_start']])
-    combined_df['y_pos_start_non_focal'] = pd.concat(
-        [df['bee_id1_y_pos_start'], df['bee_id0_y_pos_start']])
-    combined_df['theta_start_focal'] = pd.concat(
-        [df['bee_id0_theta_start'], df['bee_id1_theta_start']])
-    combined_df['theta_start_non_focal'] = pd.concat(
-        [df['bee_id1_theta_start'], df['bee_id0_theta_start']])
+def concat_position(combined_df, df, trans=False):
+    if trans:
+        combined_df['x_pos_start_focal'] = pd.concat(
+            [df['focal0_x_trans'], df['focal1_x_trans']])
+        combined_df['x_pos_start_non_focal'] = pd.concat(
+            [df['focal1_x_trans'], df['focal0_x_trans']])
+        combined_df['y_pos_start_focal'] = pd.concat(
+            [df['focal0_y_trans'], df['focal1_y_trans']])
+        combined_df['y_pos_start_non_focal'] = pd.concat(
+            [df['focal1_y_trans'], df['focal0_y_trans']])
+        combined_df['theta_start_focal'] = pd.concat(
+            [df['focal0_theta'], df['focal1_theta']])
+        combined_df['theta_start_non_focal'] = pd.concat(
+            [df['focal1_theta'], df['focal0_theta']])
+    else:
+        combined_df['x_pos_start_focal'] = pd.concat(
+            [df['bee_id0_x_pos_start'], df['bee_id1_x_pos_start']])
+        combined_df['x_pos_start_non_focal'] = pd.concat(
+            [df['bee_id1_x_pos_start'], df['bee_id0_x_pos_start']])
+        combined_df['y_pos_start_focal'] = pd.concat(
+            [df['bee_id0_y_pos_start'], df['bee_id1_y_pos_start']])
+        combined_df['y_pos_start_non_focal'] = pd.concat(
+            [df['bee_id1_y_pos_start'], df['bee_id0_y_pos_start']])
+        combined_df['theta_start_focal'] = pd.concat(
+            [df['bee_id0_theta_start'], df['bee_id1_theta_start']])
+        combined_df['theta_start_non_focal'] = pd.concat(
+            [df['bee_id1_theta_start'], df['bee_id0_theta_start']])
 
 
 def clean_interaction_df(interaction_df, column_subset=None):
@@ -367,3 +384,72 @@ def get_interactions(dt_from=None, dt_to=None, db_connection=None):
                 )
                 extracted_interactions_lst.append(interaction_dict)
         return extracted_interactions_lst
+
+
+def rotate(theta, vec):
+    """
+    Rotates a 2d vector anti-clockwise by an angle theta (in rad).
+    """
+    rot_mat = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+    return rot_mat @ vec
+
+
+def get_non_focal_bee_mask(x, y, theta):
+    # create empty result frame
+    non_focal_bee = np.zeros((29, 29))
+
+    # get standard edge points of bee
+    a = np.array((-7, -2)).astype(float)
+    b = np.array((-7, 2)).astype(float)
+    c = np.array((4, 2)).astype(float)
+    d = np.array((4, -2)).astype(float)
+
+    # rotate all edge points by theta
+    if theta != 0:
+        a = rotate(theta, a)
+        b = rotate(theta, b)
+        c = rotate(theta, c)
+        d = rotate(theta, d)
+
+    # add offset and move origin to (14,14) to correspond to
+    # matrix coordinates
+    a += [x + 14, y + 14]
+    b += [x + 14, y + 14]
+    c += [x + 14, y + 14]
+    d += [x + 14, y + 14]
+
+    points = np.array([a, b, c, d]).round().astype(int)
+
+    # draw rectangle based on edge points
+    return cv2.fillPoly(non_focal_bee, [points], 1)
+
+
+def compute_interaction_points(interaction_df):
+    # create empty matrix for interaction counts
+    counts = np.zeros((29, 29))
+
+    # create empty matrix for accumulating velocities
+    vels = np.zeros((29, 29))
+
+    # create mask for focal bee
+    focal_bee = np.zeros((29, 29))
+    focal_bee[11:18, 6:20] = 1
+
+    for i in range(len(interaction_df)):
+        # get coordinates of interacting bee
+        x, y, theta = interaction_df.iloc[i][['x_pos_start_focal', 'y_pos_start_focal', 'theta_start_focal']]
+        theta = np.pi / 2
+        # create mask for non-focal bee
+        non_focal_bee = get_non_focal_bee_mask(x, y, theta)
+
+        # get overlap
+        overlap = np.logical_and(focal_bee, non_focal_bee)
+
+        # add count and velocity values
+        if np.sum(overlap) >= 1:
+            counts += overlap
+            vel = overlap * interaction_df.iloc[i][['vel_change_bee_focal']][0]
+            vels += vel
+
+    avg_vel = np.divide(vels, counts, out=np.zeros_like(vels), where=counts != 0)
+    return counts, avg_vel
