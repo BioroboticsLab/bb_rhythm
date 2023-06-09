@@ -424,26 +424,15 @@ def get_non_focal_bee_mask(x, y, theta):
     return cv2.fillPoly(non_focal_bee, [points], 1)
 
 
-def compute_interaction_points(interaction_df):
+def compute_interaction_points(interaction_df, overlap_dict):
     # create empty matrix for interaction counts
     counts = np.zeros((29, 29))
 
     # create empty matrix for accumulating velocities
     vels = np.zeros((29, 29))
 
-    # create mask for focal bee
-    focal_bee = np.zeros((29, 29))
-    focal_bee[11:18, 6:20] = 1
-
     for i in range(len(interaction_df)):
-        # get coordinates of interacting bee
-        x, y, theta = interaction_df.iloc[i][['x_pos_start_focal', 'y_pos_start_focal', 'theta_start_focal']]
-        theta = np.pi / 2
-        # create mask for non-focal bee
-        non_focal_bee = get_non_focal_bee_mask(x, y, theta)
-
-        # get overlap
-        overlap = np.logical_and(focal_bee, non_focal_bee)
+        overlap = overlap_dict[interaction_df.iloc[i].index]
 
         # add count and velocity values
         if np.sum(overlap) >= 1:
@@ -453,3 +442,23 @@ def compute_interaction_points(interaction_df):
 
     avg_vel = np.divide(vels, counts, out=np.zeros_like(vels), where=counts != 0)
     return counts, avg_vel
+
+
+def create_overlap_dict(interaction_df):
+    overlap_dict = {}
+    for index, row in interaction_df.iterrows():
+        overlap_dict[index] = get_bee_body_overlap(row)
+    return overlap_dict
+
+
+def get_bee_body_overlap(interaction_df_row):
+    # create mask for focal bee
+    focal_bee = np.zeros((29, 29))
+    focal_bee[11:18, 6:20] = 1
+    # get coordinates of interacting bee
+    x, y, theta = interaction_df_row[['x_pos_start_focal', 'y_pos_start_focal', 'theta_start_focal']]
+    # create mask for non-focal bee
+    non_focal_bee = get_non_focal_bee_mask(x, y, theta)
+    # get overlap
+    overlap = np.logical_and(focal_bee, non_focal_bee)
+    return overlap
