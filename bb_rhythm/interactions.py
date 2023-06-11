@@ -432,7 +432,7 @@ def compute_interaction_points(interaction_df, overlap_dict):
     vels = np.zeros((29, 29))
 
     for i in range(len(interaction_df)):
-        overlap = overlap_dict[interaction_df.iloc[i].index]
+        overlap = overlap_dict[interaction_df.index[i]]
 
         # add count and velocity values
         if np.sum(overlap) >= 1:
