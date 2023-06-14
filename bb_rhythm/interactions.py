@@ -227,7 +227,7 @@ def apply_transformation(interaction_df):
     transformed_coords_focal0 = interaction_df.apply(transform_coordinates, axis=1, result_type='expand', focal_bee=0)
     transformed_coords_focal1 = interaction_df.apply(transform_coordinates, axis=1, result_type='expand', focal_bee=1)
 
-    # round coordinates to discretize positions
+    # rounded coordinates to discretize positions
     transformed_coords_focal0 = transformed_coords_focal0.apply(round)
     transformed_coords_focal1 = transformed_coords_focal1.apply(round)
 

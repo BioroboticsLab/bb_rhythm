@@ -78,7 +78,7 @@ def transform_interaction_matrix_to_df(vel_change_matrix, count_matrix):
 
 def plot_velocity_over_time_with_weather(velocity_df, weather_df, dt_from, dt_to, age_map=True,
                                          age_map_step_size=5, smoothing=False, rounded=False, round_time="60min",
-                                         age_bins=None, imshow=False, image_path=None):
+                                         age_bins=None, imshow=False, image_path=None, y_lim=None):
     # create figure
     fig, axs = plt.subplots(3, 1, figsize=(16, 10), sharex=True, gridspec_kw={'height_ratios': [8, 1, 1]})
     fig.suptitle("Mean movement speed over time")
@@ -87,7 +87,7 @@ def plot_velocity_over_time_with_weather(velocity_df, weather_df, dt_from, dt_to
     # plot velocities
     plot_velocity_per_age_group(velocity_df, axs[0], dt_from=dt_from, dt_to=dt_to, age_map=age_map,
                                 age_map_step_size=age_map_step_size, age_bins=age_bins, smoothing=smoothing,
-                                rounded=rounded, round_time=round_time)
+                                rounded=rounded, round_time=round_time, y_lim=y_lim)
 
     # plot weather
     plot_weather_data(weather_df, axs, dt_from, dt_to)
@@ -134,7 +134,7 @@ def add_grey_nighttime_bars(ax, df):
 
 
 def plot_velocity_per_age_group(time_age_velocity_df, ax, dt_from, dt_to, age_map=False, age_bins=None,
-                                age_map_step_size=5, smoothing=False, rounded=False, round_time="60min"):
+                                age_map_step_size=5, smoothing=False, rounded=False, round_time="60min", y_lim=None):
     # remove NaNs
     time_age_velocity_df = time_age_velocity_df[~pd.isnull(time_age_velocity_df.age)]
 
@@ -173,6 +173,8 @@ def plot_velocity_per_age_group(time_age_velocity_df, ax, dt_from, dt_to, age_ma
     # axis settings
     ax.set_ylabel('Mean movement speed [cm/s]')
     ax.set_xlim(xmin=dt_from, xmax=dt_to)
+    if y_lim is not None:
+        ax.set_ylim(ymin=y_lim[0], ymax=y_lim[1])
     ax.legend(loc="upper right", title="Age [days]")
 
 
