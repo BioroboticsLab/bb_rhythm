@@ -451,6 +451,13 @@ def create_overlap_dict(interaction_df):
     return overlap_dict
 
 
+def recreate_overlap_dict_from_df(overlap_df):
+    overlap_dict_new = {}
+    for column in overlap_df.columns:
+        overlap_dict_new[column] = overlap_df[column].to_numpy().reshape((29, 29))
+    return overlap_dict_new
+
+
 def get_bee_body_overlap(interaction_df_row):
     # create mask for focal bee
     focal_bee = np.zeros((29, 29))
