@@ -469,3 +469,12 @@ def get_bee_body_overlap(interaction_df_row):
     # get overlap
     overlap = np.logical_and(focal_bee, non_focal_bee)
     return overlap
+
+
+def filter_combined_interaction_df_by_overlaps(combined_df, overlap_df):
+    combined_df["overlapping"] = np.zeros(len(combined_df.index)).astype(bool).tolist()
+    for column in overlap_df.columns:
+        combined_df["overlapping"].iloc[column] = bool(overlap_df[column].sum())
+    combined_df = combined_df[combined_df["overlapping"]]
+    combined_df.drop(columns=["overlapping"], inplace=True)
+    return combined_df
