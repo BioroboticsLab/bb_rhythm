@@ -5,6 +5,7 @@ import itertools
 import pandas as pd
 from collections import defaultdict
 import cv2
+import os
 
 import bb_behavior.db
 
@@ -478,3 +479,129 @@ def filter_combined_interaction_df_by_overlaps(combined_df, overlap_df):
     combined_df = combined_df[combined_df["overlapping"]]
     combined_df.drop(columns=["overlapping"], inplace=True)
     return combined_df
+
+
+def extract_parameters_from_random_sampled_interactions(event, interaction_start, interaction_end):
+    return {"bee_id0": event[0][0],
+            "bee_id1": event[1][0],
+            "interaction_start": interaction_start,
+            "interaction_end": interaction_end,
+            "bee_id0_x_pos_start": event[0][1],
+            "bee_id0_y_pos_start": event[0][2],
+            "bee_id0_theta_start": event[0][3],
+            "bee_id1_x_pos_start": event[1][1],
+            "bee_id1_y_pos_start": event[1][2],
+            "bee_id1_theta_start": event[1][3],
+            "bee_id0_x_pos_end": event[0][4],
+            "bee_id0_y_pos_end": event[0][5],
+            "bee_id0_theta_end": event[0][6],
+            "bee_id1_x_pos_end": event[1][4],
+            "bee_id1_y_pos_end": event[1][5],
+            "bee_id1_theta_end": event[1][6]
+            }
+
+
+def get_velocity_change_per_bee(bee_id, interaction_start, interaction_end, velocities_path=None):
+    delta_t = datetime.timedelta(0, 30)
+    dt_before, dt_after = interaction_start - delta_t, interaction_end + delta_t
+
+    velocities = fetch_velocities_from_remote_or_db(bee_id, dt_after, dt_before, velocities_path)
+
+    if velocities is None:
+        return None, None
+
+    vel_before = np.mean(
+        velocities[(velocities['datetime'] >= dt_before) & (velocities['datetime'] < interaction_start)][
+            'velocity'])
+    vel_after = np.mean(
+        velocities[(velocities['datetime'] > interaction_end) & (velocities['datetime'] <= dt_after)]['velocity'])
+    del velocities
+    vel_change = vel_after - vel_before
+    if (vel_before == 0) or np.isinf(vel_before) or np.isnan(vel_before):
+        percent_change = np.NaN
+    else:
+        percent_change = (vel_change / vel_before) * 100
+    return vel_change, percent_change
+
+
+def fetch_velocities_from_remote_or_db(bee_id, dt_after, dt_before, velocites_path):
+    if type(bee_id) == np.int64:
+        bee_id = bee_id.item()
+    try:
+        # fetch velocities
+        if velocites_path is not None:
+            velocities = pd.read_pickle(os.path.join(velocites_path, "%d.pickle" % bee_id))
+        else:
+            assert FileNotFoundError
+    except FileNotFoundError:
+        # fetch velocities
+        velocities = bb_behavior.db.trajectory.get_bee_velocities(bee_id,
+                                                                  dt_before,
+                                                                  dt_after,
+                                                                  confidence_threshold=0.1,
+                                                                  max_mm_per_second=15.0
+                                                                  )
+    return velocities
+
+
+def get_intermediate_time_windows_df(df, dt_from, dt_to):
+    intermediate_df = pd.DataFrame(columns=["bee_id", "non_interaction_start", "non_interaction_end"])
+    for bee_id, group in df.groupby(["bee_id"]):
+        group.sort_values(by=["interaction_start"], inplace=True)
+        non_interaction_start = dt_from
+        non_interaction_end = df["interaction_start"].iloc[0]
+        if non_interaction_start < non_interaction_end:
+            intermediate_df.append(create_row_non_interaction_df(bee_id, non_interaction_start, non_interaction_end),
+                                   ignore_index=True)
+        # for bee_id subframe
+        current_interaction_start = df["interaction_start"].iloc[0]
+        current_interaction_end = df["interaction_end"].iloc[0]
+        for index, row in group.iterrows():
+            if in_between(current_interaction_start, row["interaction_start"], current_interaction_end, row["interaction_end"]):
+                continue
+            if overlap_after(current_interaction_start, row["interaction_start"], current_interaction_end, row["interaction_end"]):
+                current_interaction_end = row["interaction_end"]
+            if after(current_interaction_start, row["interaction_start"], current_interaction_end, row["interaction_end"]):
+                intermediate_df.append(create_row_non_interaction_df(bee_id, current_interaction_end, row["interaction_start"]),
+                                       ignore_index=True)
+                current_interaction_start = row["interaction_start"]
+                current_interaction_end = row["interaction_end"]
+            if row["interaction_end"] > dt_to:
+                break
+    return intermediate_df
+
+
+def in_between(interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1):
+    # assuming interaction_start_0 <= interaction_start_1
+    return interaction_start_0 <= interaction_start_1 & interaction_end_0 >= interaction_end_1
+
+
+def overlap_after(interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1):
+    # assuming interaction_start_0 <= interaction_start_1
+    return interaction_start_0 <= interaction_start_1 & interaction_end_0 < interaction_end_1
+
+
+def after(interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1):
+    # assuming interaction_start_0 <= interaction_start_1
+    return interaction_end_0 < interaction_start_1
+
+
+def create_row_non_interaction_df(bee_id, non_interaction_start, non_interaction_end):
+    return {"bee_id": bee_id, "non_interaction_start": non_interaction_start, "non_interaction_end": non_interaction_end}
+
+
+def add_circadianess_to_interaction_df(interactions_df, circadian_df):
+    interactions_df["date"] = [
+        interaction.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(hours=12) for interaction in
+        interactions_df["interaction_start"]]
+    interactions_df["bee_id"] = interactions_df["bee_id0"]
+    interactions_df_merged = pd.merge(interactions_df, circadian_df, how="left", on=["date", "bee_id"])
+    interactions_df_merged["age_0"] = interactions_df_merged["age"]
+    interactions_df_merged["circadianess_bee0"] = interactions_df_merged["r_squared"]
+    interactions_df_merged.drop(columns=["age", "r_squared", "bee_id"], inplace=True)
+    interactions_df_merged["bee_id"] = interactions_df_merged["bee_id1"]
+    interactions_df_merged = pd.merge(interactions_df_merged, circadian_df, how="left", on=["date", "bee_id"])
+    interactions_df_merged["age_1"] = interactions_df_merged["age"]
+    interactions_df_merged["circadianess_bee1"] = interactions_df_merged["r_squared"]
+    interactions_df_merged.drop(columns=["age", "r_squared", "bee_id", "date"], inplace=True)
+    return interactions_df_merged
