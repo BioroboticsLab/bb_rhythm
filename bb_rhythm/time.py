@@ -10,16 +10,20 @@ class SolarTimeConverter:
 
     def convert_utc_to_local_mean_time(self, time_utc, reference="solar_noon"):
         # get local time when sun stays in zenith
-        solar_noon = get_times(time_utc, self.longitude, self.latitude)[reference]
-        # get difference to utc time
-        noon_shift = (
-            pd.Timestamp(datetime.datetime(*time_utc.timetuple()[:3]))
-            + datetime.timedelta(hours=12)
-            - solar_noon
-        )
+        reference_shift = self.get_reference_shift(reference, time_utc)
         # add difference to utc time
-        local_mean_time = time_utc + noon_shift
+        local_mean_time = time_utc + reference_shift
         return local_mean_time.tz_convert(None)
+
+    def get_reference_shift(self, time_utc, reference="solar_noon"):
+        solar_reference = get_times(time_utc, self.longitude, self.latitude)[reference]
+        # get difference to utc time
+        reference_shift = (
+                pd.Timestamp(datetime.datetime(*time_utc.timetuple()[:3]))
+                + datetime.timedelta(hours=12)
+                - solar_reference
+        )
+        return reference_shift
 
     def convert_local_mean_time_to_utc(self):
         pass

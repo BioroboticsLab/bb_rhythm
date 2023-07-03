@@ -786,7 +786,7 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
     interactions_df_merged["age_0"] = interactions_df_merged["age"]
     interactions_df_merged["circadianess_bee0"] = interactions_df_merged["r_squared"]
     interactions_df_merged["amplitude_bee0"] = interactions_df_merged["amplitude"]
-    interactions_df_merged.drop(columns=["age", "r_squared", "bee_id"], inplace=True)
+    interactions_df_merged.drop(columns=["age", "r_squared", "bee_id", "amplitude"], inplace=True)
     interactions_df_merged["bee_id"] = interactions_df_merged["bee_id1"]
     interactions_df_merged = pd.merge(
         interactions_df_merged, circadian_df, how="left", on=["date", "bee_id"]
