@@ -357,6 +357,16 @@ def concat_circ(combined_df, df):
     return combined_df
 
 
+def concat_amplitude(combined_df, df):
+    combined_df["amplitude_focal"] = pd.concat(
+        [df["amplitude_bee0"], df["amplitude_bee1"]]
+    )
+    combined_df["circadianess_non_focal"] = pd.concat(
+        [df["amplitude_bee1"], df["amplitude_bee0"]]
+    )
+    return combined_df
+
+
 def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
     combined_df = pd.DataFrame(
         columns=[
@@ -369,9 +379,12 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "relative_change_bee_non_focal",
             "duration",
             "hour",
+            "amplitude_focal",
+            "amplitude_non_focal"
         ]
     )
     concat_circ(combined_df, df)
+    concat_amplitude(combined_df, df)
     concat_ages(combined_df, df)
     concat_velocity_changes(combined_df, df)
     concat_duration_time(combined_df, df)
