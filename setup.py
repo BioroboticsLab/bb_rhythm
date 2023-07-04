@@ -18,14 +18,14 @@ reqs = [req for req in reqs if "http" not in req]
 reqs += [url.split("egg=")[-1] for url in dep_links if "egg=" in url]
 
 setup(
-    name='bb_rhythm',
-    version='0.1',
-    description='BeesBook rhythmicity, interaction, and behavior analysis',
-    author='Julia Mellert, Weronika Klos',
-    author_email='julia.mellert@fu-berlin.de',
-    url='https://github.com/JuliaMelle01/bb_rhythm/',
+    name="bb_rhythm",
+    version="0.1",
+    description="BeesBook rhythmicity, interaction, and behavior analysis",
+    author="Julia Mellert, Weronika Klos",
+    author_email="julia.mellert@fu-berlin.de",
+    url="https://github.com/JuliaMelle01/bb_rhythm/",
     install_requires=reqs,
     dependency_links=dep_links,
     packages=find_packages(),
-    package_dir={'bb_rhythm': 'bb_rhythm/'}
+    package_dir={"bb_rhythm": "bb_rhythm/"},
 )

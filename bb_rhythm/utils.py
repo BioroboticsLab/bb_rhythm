@@ -1,5 +1,8 @@
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import PolynomialFeatures
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
 
 
 def add_age_bins(velocity_df, step_size=5, age_bins=None):
@@ -50,3 +53,41 @@ def create_age_map_bin(max_age, n_age_bins, step_size):
     age_map["nan"] = "Nan"
     age_bins.append(int(max_age))
     return age_bins, age_map
+
+
+def calculate_linear_regression(df, x_column, y_column, type="linear", printing=True, degree=3):
+    # define predictor and response variables
+    y = df[y_column]
+    x = df[x_column]
+
+    # add constant to predictor variables
+    X = sm.add_constant(x)
+
+    # fit linear regression model
+    if type == "linear":
+        fit = sm.OLS(y, X).fit()
+
+    # fit weighted least squares regression model
+    if type == "weighted_linear":
+        # define weights to use
+        wt = 1 / smf.ols('fit.resid.abs() ~ fit.fittedvalues', data=df).fit().fittedvalues ** 2
+
+        # fit weighted least squares regression model
+        fit = sm.WLS(y, X, weights=wt).fit()
+
+    if type == "polynomial":
+        # define polynomial x values
+        polynomial_features = PolynomialFeatures(degree=degree)
+        xp = polynomial_features.fit_transform(X)
+
+        # calculate fit
+        fit = sm.OLS(y, xp).fit()
+
+    else:
+        raise NotImplementedError
+
+    # view model summary
+    if printing:
+        print(fit.summary())
+
+    return fit
