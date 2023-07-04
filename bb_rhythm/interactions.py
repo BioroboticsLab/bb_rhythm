@@ -378,7 +378,7 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "duration",
             "hour",
             "amplitude_focal",
-            "amplitude_non_focal"
+            "amplitude_non_focal",
         ]
     )
     concat_circ(combined_df, df)
@@ -797,7 +797,9 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
     interactions_df_merged["age_0"] = interactions_df_merged["age"]
     interactions_df_merged["circadianess_bee0"] = interactions_df_merged["r_squared"]
     interactions_df_merged["amplitude_bee0"] = interactions_df_merged["amplitude"]
-    interactions_df_merged.drop(columns=["age", "r_squared", "bee_id", "amplitude"], inplace=True)
+    interactions_df_merged.drop(
+        columns=["age", "r_squared", "bee_id", "amplitude"], inplace=True
+    )
     interactions_df_merged["bee_id"] = interactions_df_merged["bee_id1"]
     interactions_df_merged = pd.merge(
         interactions_df_merged, circadian_df, how="left", on=["date", "bee_id"]
@@ -817,10 +819,10 @@ def get_hour(interaction_df):
 
 def get_start_velocity(df):
     df["velocity_start_bee_0"] = (
-            df["vel_change_bee_0"] * 100 / df["relative_change_bee_0"]
+        df["vel_change_bee_0"] * 100 / df["relative_change_bee_0"]
     )
     df["velocity_start_bee_1"] = (
-            df["vel_change_bee_1"] * 100 / df["relative_change_bee_1"]
+        df["vel_change_bee_1"] * 100 / df["relative_change_bee_1"]
     )
 
 

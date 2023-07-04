@@ -166,7 +166,9 @@ def create_age_map_bin(max_age, n_age_bins, step_size):
     return age_bins, age_map
 
 
-def calculate_regression(df, x_column, y_column, type="linear", printing=True, degree=3):
+def calculate_regression(
+    df, x_column, y_column, type="linear", printing=True, degree=3
+):
     # define predictor and response variables
     y = df[y_column]
     x = df[x_column]
@@ -181,7 +183,11 @@ def calculate_regression(df, x_column, y_column, type="linear", printing=True, d
     # fit weighted least squares regression model
     elif type == "weighted_linear":
         # define weights to use
-        wt = 1 / smf.ols('fit.resid.abs() ~ fit.fittedvalues', data=df).fit().fittedvalues ** 2
+        wt = (
+            1
+            / smf.ols("fit.resid.abs() ~ fit.fittedvalues", data=df).fit().fittedvalues
+            ** 2
+        )
 
         # fit weighted least squares regression model
         fit = sm.WLS(y, X, weights=wt).fit()
