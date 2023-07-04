@@ -68,14 +68,14 @@ def calculate_regression(df, x_column, y_column, type="linear", printing=True, d
         fit = sm.OLS(y, X).fit()
 
     # fit weighted least squares regression model
-    if type == "weighted_linear":
+    elif type == "weighted_linear":
         # define weights to use
         wt = 1 / smf.ols('fit.resid.abs() ~ fit.fittedvalues', data=df).fit().fittedvalues ** 2
 
         # fit weighted least squares regression model
         fit = sm.WLS(y, X, weights=wt).fit()
 
-    if type == "polynomial":
+    elif type == "polynomial":
         # define polynomial x values
         polynomial_features = PolynomialFeatures(degree=degree)
         xp = polynomial_features.fit_transform(X)
