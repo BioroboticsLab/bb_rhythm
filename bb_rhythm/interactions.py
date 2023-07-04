@@ -374,6 +374,7 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "circadianess_non_focal",
             "age_focal",
             "age_non_focal",
+            "vel_change_bee_focal",
             "vel_change_bee_non_focal",
             "relative_change_bee_focal",
             "relative_change_bee_non_focal",
@@ -811,3 +812,21 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
         columns=["age", "r_squared", "bee_id", "date", "amplitude"], inplace=True
     )
     return interactions_df_merged
+
+
+def get_hour(interaction_df):
+    interaction_df["hour"] = interaction_df["interaction_start"].dt.hour
+
+
+def get_start_velocity(df):
+    df["velocity_start_bee_0"] = (
+            df["vel_change_bee_0"] * 100 / df["relative_change_bee_0"]
+    )
+    df["velocity_start_bee_1"] = (
+            df["vel_change_bee_1"] * 100 / df["relative_change_bee_1"]
+    )
+
+
+def filter_overlap(interaction_df):
+    interaction_df = interaction_df[interaction_df["overlap"].values]
+    return interaction_df
