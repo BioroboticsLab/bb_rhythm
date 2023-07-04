@@ -183,6 +183,8 @@ def calculate_regression(
 
     # fit weighted least squares regression model
     elif type == "weighted_linear":
+        fit = sm.OLS(y, X).fit()
+
         # define weights to use
         wt = (
             1
@@ -191,7 +193,8 @@ def calculate_regression(
         )
 
         # fit weighted least squares regression model
-        fit = sm.WLS(y, X, weights=wt).fit()
+        fit_poly = sm.WLS(y, X, weights=wt).fit()
+        fit = fit_poly
 
     elif type == "polynomial":
         # define polynomial x values
