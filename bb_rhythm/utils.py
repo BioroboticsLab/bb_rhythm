@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn.preprocessing import PolynomialFeatures
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+import scipy
 
 
 def add_age_bins(velocity_df, step_size=5, age_bins=None):
@@ -208,3 +209,45 @@ def calculate_regression(
         print(fit.summary())
 
     return fit
+
+
+def test_for_equal_variance_and_normally_distributed(
+    df,
+    bin_metric="equal_bin_size",
+    n_bins=6,
+    change_type="vel_change_bee_focal",
+    printing=True,
+):
+    group_type1 = "bins_bee_non_focal"
+    group_type2 = "bins_bee_focal"
+
+    if bin_metric:
+        utils.add_circadian_bins(df, bin_metric, n_bins=n_bins)
+
+    samples = []
+    test_results_normal = []
+    for name, group in df[[group_type1, group_type2, change_type]].groupby(
+        [group_type1, group_type2]
+    ):
+        test_result_normal = scipy.stats.normaltest(group[change_type].to_numpy())
+        test_results_normal.append(test_result_normal)
+        if printing:
+            print(type(group[change_type]))
+            print(name)
+            print("\n")
+            print(group.describe())
+            print("\n")
+            print("normally distributed test 'normaltest': \n")
+            print("statistic: %s \n" % str(test_result_normal.statistic))
+            print("p_value: %s \n" % str(test_result_normal.pvalue))
+            print("\n\n")
+        samples.append(group[change_type].to_numpy())
+
+    test_result_variance = scipy.stats.levene(*samples, center="mean")
+    if printing:
+        print(*samples)
+        print("equal variance test levene: \n")
+        print("statistic: %s \n" % str(test_result_variance.statistic))
+        print("p_value: %s \n" % str(test_result_variance.pvalue))
+
+    return test_results_normal, test_result_variance
