@@ -279,7 +279,8 @@ def transform_coordinates(interaction, focal_bee=0):
         return (
             transformed[0],
             transformed[1],
-        )  # , interaction['theta_end_focal'] - bee0_theta
+            bee1_theta - bee0_theta
+        )
     else:
         # translation to make bee1 coordinates the origin
         x_prime = bee0_x - bee1_x
@@ -298,7 +299,8 @@ def transform_coordinates(interaction, focal_bee=0):
         return (
             transformed[0],
             transformed[1],
-        )  # , interaction['theta_end_non_focal'] - bee1_theta
+            bee0_theta - bee1_theta
+        )
 
 
 def apply_transformation(interaction_df):
@@ -315,8 +317,8 @@ def apply_transformation(interaction_df):
     transformed_coords_focal1 = transformed_coords_focal1.apply(round)
 
     # append columns to original vel_change_matrix_df
-    interaction_df[["focal0_x_trans", "focal0_y_trans"]] = transformed_coords_focal0
-    interaction_df[["focal1_x_trans", "focal1_y_trans"]] = transformed_coords_focal1
+    interaction_df[["focal0_x_trans", "focal0_y_trans", "focal0_theta_trans"]] = transformed_coords_focal0
+    interaction_df[["focal1_x_trans", "focal1_y_trans", "focal1_theta_trans"]] = transformed_coords_focal1
 
     return interaction_df
 
@@ -596,7 +598,7 @@ def recreate_overlap_dict_from_df(overlap_df):
 def get_bee_body_overlap(interaction_df_row):
     # create mask for focal bee
     focal_bee = np.zeros((29, 29))
-    focal_bee[11:18, 6:20] = 1
+    focal_bee[10:19, 5:21] = 1
     # get coordinates of interacting bee
     x, y, theta = interaction_df_row[
         ["x_pos_start_focal", "y_pos_start_focal", "theta_start_focal"]
