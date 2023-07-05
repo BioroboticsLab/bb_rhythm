@@ -10,6 +10,7 @@ from scipy.ndimage import gaussian_filter1d
 
 from . import utils
 from . import rhythm
+from . import interactions
 
 
 def plot_body_location_of_interactions(
@@ -636,3 +637,104 @@ def set_ax_props_circadianess_per_age_group_plot(ax):
     # set ax labels
     ax.set_xlabel("")
     ax.set_ylabel("")
+
+
+def get_bin_distributions_as_histmap(
+    df,
+    plot_path,
+    group_type1="bins_bee_non_focal",
+    group_type2="bins_bee_focal",
+    bin_func=True,
+    bin_metric="equal_bin_size",
+    n_bins=6,
+    change_type1="vel_change_bee_focal",
+    printing=True,
+):
+    if bin_func:
+        utils.add_circadian_bins(df, bin_metric, n_bins=n_bins)
+
+    # print info per bin
+    if printing:
+        for name, group in df[[group_type1, group_type2, change_type1]].groupby(
+            [group_type1, group_type2]
+        ):
+            print(name)
+            print("\n")
+            print(group.describe())
+            print("\n\n")
+
+    # plot distribution per bin as histogram
+    rcParams.update({"figure.autolayout": True})
+    g = sns.FacetGrid(
+        df[[group_type1, group_type2, change_type1]],
+        col=group_type2,
+        row=group_type1,
+        margin_titles=True,
+        row_order=df[group_type1].unique().categories[::-1],
+    )
+    g.map(sns.histplot, change_type1, kde=True)
+    g.figure.subplots_adjust(wspace=0.02, hspace=0.02)
+    plt.savefig(plot_path)
+
+
+def plot_bins_velocity_focal_non_focal(
+    combined_df,
+    plot_path,
+    bin_metric="equal_bin_size",
+    n_bins=6,
+    change_type="vel_change_bee_focal",
+):
+    # add bins
+    if bin_metric:
+        utils.add_circadian_bins(combined_df, bin_metric, n_bins=n_bins)
+
+    # create pivot for plotting
+    group_type1 = "bins_bee_non_focal"
+    group_type2 = "bins_bee_focal"
+    plot_pivot = (
+        combined_df[[group_type1, group_type2, change_type]]
+        .groupby([group_type1, group_type2])
+        .median()
+        .unstack(level=-1)
+    )
+
+    # plot
+    rcParams.update({"figure.autolayout": True})
+    fig, axs = plt.subplots(1, 1, figsize=(20, 20))
+    sns.heatmap(plot_pivot, annot=True, cmap="rocket", robust=True, ax=axs)
+    axs.invert_yaxis()
+    axs.set_title("Median velocity change of focal bee")
+    axs.set_xticklabels(sorted(combined_df.bins_bee_focal.unique()))
+    axs.set_yticklabels(sorted(combined_df.bins_bee_focal.unique()), rotation=0)
+    axs.set(
+        xlabel="Circadian power of focal bee", ylabel="Circadian power of non-focal bee"
+    )
+    plt.savefig(plot_path)
+
+
+def prepare_interaction_df_for_plotting(interaction_df, relative_change_clean=False):
+    # add duration, hour, start_velocity to df
+    interactions.get_duration(interaction_df)
+    interactions.get_start_velocity(interaction_df)
+    interactions.get_hour(interaction_df)
+
+    # filter age = 0 out
+    interaction_df = interaction_df[
+        (interaction_df["age_0"] >= 0) & (interaction_df["age_1"] >= 0)
+    ]
+
+    # filter Nans and infs
+    to_be_cleaned_columns = [
+        "amplitude_bee0",
+        "amplitude_bee1",
+        "vel_change_bee_0",
+        "vel_change_bee_1",
+        "circadianess_bee0",
+        "circadianess_bee1",
+    ]
+    if relative_change_clean:
+        to_be_cleaned_columns.extend(["relative_change_bee_0", "relative_change_bee_1"])
+    interaction_df = interactions.clean_interaction_df(
+        interaction_df, to_be_cleaned_columns
+    )
+    return interaction_df

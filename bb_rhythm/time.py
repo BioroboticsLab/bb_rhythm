@@ -19,9 +19,9 @@ class SolarTimeConverter:
         solar_reference = get_times(time_utc, self.longitude, self.latitude)[reference]
         # get difference to utc time
         reference_shift = (
-                pd.Timestamp(datetime.datetime(*time_utc.timetuple()[:3]))
-                + datetime.timedelta(hours=12)
-                - solar_reference
+            pd.Timestamp(datetime.datetime(*time_utc.timetuple()[:3]))
+            + datetime.timedelta(hours=12)
+            - solar_reference
         )
         return reference_shift
 

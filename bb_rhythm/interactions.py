@@ -356,17 +356,15 @@ def concat_circ(combined_df, df):
     combined_df["circadianess_non_focal"] = pd.concat(
         [df["circadianess_bee1"], df["circadianess_bee0"]]
     )
-    return combined_df
 
 
 def concat_amplitude(combined_df, df):
     combined_df["amplitude_focal"] = pd.concat(
         [df["amplitude_bee0"], df["amplitude_bee1"]]
     )
-    combined_df["circadianess_non_focal"] = pd.concat(
+    combined_df["amplitude_non_focal"] = pd.concat(
         [df["amplitude_bee1"], df["amplitude_bee0"]]
     )
-    return combined_df
 
 
 def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
@@ -382,7 +380,7 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "duration",
             "hour",
             "amplitude_focal",
-            "amplitude_non_focal"
+            "amplitude_non_focal",
         ]
     )
     concat_circ(combined_df, df)
@@ -801,7 +799,9 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
     interactions_df_merged["age_0"] = interactions_df_merged["age"]
     interactions_df_merged["circadianess_bee0"] = interactions_df_merged["r_squared"]
     interactions_df_merged["amplitude_bee0"] = interactions_df_merged["amplitude"]
-    interactions_df_merged.drop(columns=["age", "r_squared", "bee_id", "amplitude"], inplace=True)
+    interactions_df_merged.drop(
+        columns=["age", "r_squared", "bee_id", "amplitude"], inplace=True
+    )
     interactions_df_merged["bee_id"] = interactions_df_merged["bee_id1"]
     interactions_df_merged = pd.merge(
         interactions_df_merged, circadian_df, how="left", on=["date", "bee_id"]
@@ -813,3 +813,21 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
         columns=["age", "r_squared", "bee_id", "date", "amplitude"], inplace=True
     )
     return interactions_df_merged
+
+
+def get_hour(interaction_df):
+    interaction_df["hour"] = interaction_df["interaction_start"].dt.hour
+
+
+def get_start_velocity(df):
+    df["velocity_start_bee_0"] = (
+        df["vel_change_bee_0"] * 100 / df["relative_change_bee_0"]
+    )
+    df["velocity_start_bee_1"] = (
+        df["vel_change_bee_1"] * 100 / df["relative_change_bee_1"]
+    )
+
+
+def filter_overlap(interaction_df):
+    interaction_df = interaction_df[interaction_df["overlap"].values]
+    return interaction_df
