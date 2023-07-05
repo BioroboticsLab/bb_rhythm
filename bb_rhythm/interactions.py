@@ -276,11 +276,7 @@ def transform_coordinates(interaction, focal_bee=0):
         )
         transformed = rot_mat @ bee1_coords
 
-        return (
-            transformed[0],
-            transformed[1],
-            bee1_theta - bee0_theta
-        )
+        return (transformed[0], transformed[1], bee1_theta - bee0_theta)
     else:
         # translation to make bee1 coordinates the origin
         x_prime = bee0_x - bee1_x
@@ -296,11 +292,7 @@ def transform_coordinates(interaction, focal_bee=0):
         )
         transformed = rot_mat @ bee0_coords
 
-        return (
-            transformed[0],
-            transformed[1],
-            bee0_theta - bee1_theta
-        )
+        return (transformed[0], transformed[1], bee0_theta - bee1_theta)
 
 
 def apply_transformation(interaction_df):
@@ -317,8 +309,12 @@ def apply_transformation(interaction_df):
     transformed_coords_focal1 = transformed_coords_focal1.apply(round)
 
     # append columns to original vel_change_matrix_df
-    interaction_df[["focal0_x_trans", "focal0_y_trans", "focal0_theta_trans"]] = transformed_coords_focal0
-    interaction_df[["focal1_x_trans", "focal1_y_trans", "focal1_theta_trans"]] = transformed_coords_focal1
+    interaction_df[
+        ["focal0_x_trans", "focal0_y_trans", "focal0_theta_trans"]
+    ] = transformed_coords_focal0
+    interaction_df[
+        ["focal1_x_trans", "focal1_y_trans", "focal1_theta_trans"]
+    ] = transformed_coords_focal1
 
     return interaction_df
 

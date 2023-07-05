@@ -1,9 +1,11 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import PolynomialFeatures
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import scipy
+from bb_rhythm import utils
 
 
 def add_age_bins(velocity_df, step_size=5, age_bins=None):
@@ -214,43 +216,103 @@ def calculate_regression(
     return fit
 
 
-def test_for_equal_variance_and_normally_distributed(
+def test_normally_distributed_bins(
     df,
-    bin_metric="equal_bin_size",
-    n_bins=6,
     change_type="vel_change_bee_focal",
     printing=True,
 ):
+    # test for each bin if normally distributed
     group_type1 = "bins_bee_non_focal"
     group_type2 = "bins_bee_focal"
-
-    if bin_metric:
-        add_circadian_bins(df, bin_metric, n_bins=n_bins)
-
-    samples = []
-    test_results_normal = []
+    test_results_normal = {}
     for name, group in df[[group_type1, group_type2, change_type]].groupby(
         [group_type1, group_type2]
     ):
-        test_result_normal = scipy.stats.normaltest(group[change_type].to_numpy())
-        test_results_normal.append(test_result_normal)
-        if printing:
-            print(type(group[change_type]))
-            print(name)
-            print("\n")
-            print(group.describe())
-            print("\n")
-            print("normally distributed test 'normaltest': \n")
-            print("statistic: %s \n" % str(test_result_normal.statistic))
-            print("p_value: %s \n" % str(test_result_normal.pvalue))
-            print("\n\n")
-        samples.append(group[change_type].to_numpy())
+        test_results_normal[name] = test_bin_normally_distributed(
+            change_type, group, name, printing
+        )
+    return test_results_normal
 
-    test_result_variance = scipy.stats.levene(*samples, center="mean")
+
+def test_for_equal_variance_in_bins(
+    df,
+    change_type="vel_change_bee_focal",
+    printing=True,
+):
+    # get samples from bins
+    group_type1 = "bins_bee_non_focal"
+    group_type2 = "bins_bee_focal"
+    bin_samples = [
+        group[change_type].to_numpy()
+        for name, group in df[[group_type1, group_type2, change_type]].groupby(
+            [group_type1, group_type2]
+        )
+    ]
+
+    # test if all samples have same variance
+    test_result_variance = test_bins_have_equal_variance(printing, bin_samples)
+    return test_result_variance
+
+
+def test_for_comparison_bins(
+    df_null,
+    df_interaction,
+    change_type="vel_change_bee_focal",
+    printing=True,
+    test_func=utils.test_bins_have_equal_variance,
+    args=None,
+):
+    # iterate through bins and test
+    group_type1 = "bins_bee_non_focal"
+    group_type2 = "bins_bee_focal"
+    test_results_comparison = {}
+    for (name_null, group_null), (name_interaction, group_interaction) in zip(
+        df_null[[group_type1, group_type2, change_type]].groupby(
+            [group_type1, group_type2]
+        ),
+        df_interaction[[group_type1, group_type2, change_type]].groupby(
+            [group_type1, group_type2]
+        ),
+    ):
+        samples = [
+            group_null[change_type].to_numpy(),
+            group_interaction[change_type].to_numpy(),
+        ]
+        if printing:
+            print((name_null, name_interaction))
+        test_result = test_func(samples, printing=printing, *args)
+        test_results_comparison[(name_null, name_interaction)] = test_result
+    return test_results_comparison
+
+
+def test_bins_have_equal_variance(samples, printing=True, center="mean"):
+    test_result_variance = scipy.stats.levene(*samples, center=center)
     if printing:
-        print(*samples)
         print("equal variance test levene: \n")
         print("statistic: %s \n" % str(test_result_variance.statistic))
         print("p_value: %s \n" % str(test_result_variance.pvalue))
+    return test_result_variance
 
-    return test_results_normal, test_result_variance
+
+def test_bins_have_unequal_mean(samples, printing=True, equal_var=False):
+    test_result_t = scipy.stats.ttest_ind(*samples, equal_var=equal_var)
+    if printing:
+        print("t-test means: \n")
+        print("statistic: %s \n" % str(test_result_t.statistic))
+        print("p_value: %s \n" % str(test_result_t.pvalue))
+    return test_result_t
+
+
+def test_bin_normally_distributed(change_type, group, name, printing):
+    test_result_normal = scipy.stats.normaltest(group[change_type].to_numpy())
+    if printing:
+        print(type(group[change_type]))
+        print(name)
+        print("\n")
+        print(group.describe())
+        print("\n")
+        print("normally distributed test 'normaltest': \n")
+        print("statistic: %s \n" % str(test_result_normal.statistic))
+        print("p_value: %s \n" % str(test_result_normal.pvalue))
+        print("\n\n")
+    return test_result_normal
