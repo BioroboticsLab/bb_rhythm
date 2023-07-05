@@ -225,7 +225,7 @@ def test_for_equal_variance_and_normally_distributed(
     group_type2 = "bins_bee_focal"
 
     if bin_metric:
-        utils.add_circadian_bins(df, bin_metric, n_bins=n_bins)
+        add_circadian_bins(df, bin_metric, n_bins=n_bins)
 
     samples = []
     test_results_normal = []
