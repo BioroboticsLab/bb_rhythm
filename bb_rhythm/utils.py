@@ -302,7 +302,9 @@ def test_bins_have_unequal_mean(samples, printing=True, equal_var=False):
 
 
 def test_bin_normally_distributed(change_type, group, name, printing):
-    test_result_normal = scipy.stats.normaltest(group[change_type].to_numpy())
+    dist_args = scipy.stats.norm.fit(group[change_type].to_numpy())
+    norm_distribution = scipy.stats.norm(*dist_args)
+    test_result_normal = scipy.stats.kstest(rvs=group[change_type].to_numpy(), cdf=norm_distribution)
     if printing:
         print(type(group[change_type]))
         print(name)
