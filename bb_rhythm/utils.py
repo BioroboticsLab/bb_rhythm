@@ -1,11 +1,9 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import PolynomialFeatures
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import scipy
-from bb_rhythm import utils
 
 
 def add_age_bins(velocity_df, step_size=5, age_bins=None):
@@ -257,9 +255,9 @@ def test_for_equal_variance_in_bins(
 def test_for_comparison_bins(
     df_null,
     df_interaction,
+    test_func,
     change_type="vel_change_bee_focal",
     printing=True,
-    test_func=utils.test_bins_have_equal_variance,
     args=None,
 ):
     # iterate through bins and test
