@@ -256,9 +256,9 @@ def test_for_comparison_bins(
     df_null,
     df_interaction,
     test_func,
+    args=None,
     change_type="vel_change_bee_focal",
     printing=True,
-    args=None,
 ):
     # iterate through bins and test
     group_type1 = "bins_bee_non_focal"
@@ -278,7 +278,7 @@ def test_for_comparison_bins(
         ]
         if printing:
             print((name_null, name_interaction))
-        test_result = test_func(samples, printing=printing, *args)
+        test_result = test_func(samples, *args)
         test_results_comparison[(name_null, name_interaction)] = test_result
     return test_results_comparison
 
@@ -303,10 +303,11 @@ def test_bins_have_unequal_mean(samples, printing=True, equal_var=False):
 
 def test_bin_normally_distributed(change_type, group, name, printing):
     dist_args = scipy.stats.norm.fit(group[change_type].to_numpy())
-    norm_distribution = scipy.stats.norm(*dist_args)
-    test_result_normal = scipy.stats.kstest(rvs=group[change_type].to_numpy(), cdf=norm_distribution)
+    norm_distribution = scipy.stats.norm(*dist_args).cdf
+    test_result_normal = scipy.stats.kstest(
+        rvs=group[change_type].to_numpy(), cdf=norm_distribution
+    )
     if printing:
-        print(type(group[change_type]))
         print(name)
         print("\n")
         print(group.describe())

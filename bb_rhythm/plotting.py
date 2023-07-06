@@ -705,7 +705,7 @@ def plot_bins_velocity_focal_non_focal(
     rcParams.update({"figure.autolayout": True})
     fig, axs = plt.subplots(1, 1, figsize=(20, 20))
     sns.heatmap(plot_pivot, annot=True, cmap="rocket", robust=True, ax=axs)
-    # axs.invert_yaxis()
+    axs.invert_yaxis()
     axs.set_title("%s velocity change of focal bee" % fig_title_agg_func)
     axs.set_xticklabels(sorted(combined_df.bins_bee_focal.unique()))
     axs.set_yticklabels(sorted(combined_df.bins_bee_focal.unique()), rotation=0)
@@ -754,12 +754,28 @@ def plot_p_values_per_bin_from_test(
     if not ax:
         fig, ax = plt.subplots(1, 1, figsize=(10, 10))
     p_values = np.array(
-        [value.p_value for key, value in zip(test_result_dict)]
+        [test_result_dict[key].pvalue for key in test_result_dict]
     ).reshape((n_bins, n_bins))
-    sns.heatmap(data=p_values, ax=ax, annotation=True, cmap="rocket")
+    sns.heatmap(data=p_values, ax=ax, annot=True, cmap="rocket")
+    ax.invert_yaxis()
     ax.set_title("P-values")
-    x_labels = [key[0] for key, value in zip(test_result_dict)]
-    y_labels = [key[1] for key, value in zip(test_result_dict)]
+    x_labels = np.unique(np.array([key[0] for key in test_result_dict]))
+    y_labels = np.unique(np.array([key[1] for key in test_result_dict]))
+    # case for comparison tests
+    if len(x_labels) > n_bins:
+        x_labels_copy = x_labels.copy()
+        x_labels = [
+            f"({x_label[1].left}, {x_label[1].right}]\n({y_label[1].left}, {y_label[1].right}]"
+            for x_label, y_label in zip(
+                x_labels.reshape((n_bins, 2)), y_labels.reshape((n_bins, 2))
+            )
+        ]
+        y_labels = [
+            f"({x_label[0].left}, {x_label[0].right}]\n({y_label[0].left}, {y_label[0].right}]"
+            for x_label, y_label in zip(
+                x_labels_copy.reshape((n_bins, 2)), y_labels.reshape((n_bins, 2))
+            )
+        ]
     ax.set_xticklabels(x_labels)
     ax.set_yticklabels(y_labels, rotation=0)
     ax.set(

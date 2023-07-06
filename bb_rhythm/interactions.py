@@ -6,6 +6,7 @@ import pandas as pd
 from collections import defaultdict
 import cv2
 import os
+import zipfile
 
 import bb_behavior.db
 
@@ -827,3 +828,21 @@ def get_start_velocity(df):
 def filter_overlap(interaction_df):
     interaction_df = interaction_df[interaction_df["overlap"].values]
     return interaction_df
+
+
+def combine_interactions_from_slurm_job(job, slurm_path, circadian_df):
+    file_list = [filename for filename in os.listdir(slurm_path)]
+    dfs = []
+    for filename in file_list:
+        try:
+            kwargs, results = job.load_kwargs_results_from_result_file(filename)
+            dfs.extend(results)
+        except (zipfile.BadZipFile, KeyError, EOFError) as e:
+            # This probably means that a job failed while writing the zipfile (and is thus still open).
+            continue
+    interactions_df = pd.DataFrame(dfs)
+
+    interactions_df_merged = add_circadianess_to_interaction_df(
+        interactions_df, circadian_df
+    )
+    return interactions_df_merged
