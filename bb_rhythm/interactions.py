@@ -254,33 +254,25 @@ def swap_focal_bee_to_be_low_circadian(df):
 
 # transform coordinates
 def transform_coordinates(interaction, focal_bee=0):
-    bee0_x = interaction["x_pos_start_focal"]
-    bee0_y = interaction["y_pos_start_focal"]
-    bee0_theta = interaction["theta_start_focal"]
-    bee1_x = interaction["x_pos_start_non_focal"]
-    bee1_y = interaction["y_pos_start_non_focal"]
-    bee1_theta = interaction["theta_start_non_focal"]
+    bee0_x = interaction['bee_id0_x_pos_start']
+    bee0_y = interaction['bee_id0_y_pos_start']
+    bee0_theta = interaction['bee_id0_theta_start']
+    bee1_x = interaction['bee_id1_x_pos_start']
+    bee1_y = interaction['bee_id1_y_pos_start']
+    bee1_theta = interaction['bee_id1_theta_start']
 
     if focal_bee == 0:
         # translation to make bee0 coordinates the origin
-        x_prime = bee1_x - bee0_x
+        x_prime = bee1_x - bee0_x    
         y_prime = bee1_y - bee0_y
         bee1_coords = np.array([x_prime, y_prime])
 
         # rotation to make bee0 angle zero
-        rot_mat = np.array(
-            [
-                [np.cos(-bee0_theta), -np.sin(-bee0_theta)],
-                [np.sin(-bee0_theta), np.cos(-bee0_theta)],
-            ]
-        )
-        transformed = rot_mat @ bee1_coords
+        transformed = rotate(-bee0_theta, bee1_coords)
 
-        return (
-            transformed[0],
-            transformed[1],
-            bee1_theta - bee0_theta
-        )
+        # return transformed coordinates and angle of non-focal bee
+        return transformed[0], transformed[1], bee1_theta - bee0_theta
+
     else:
         # translation to make bee1 coordinates the origin
         x_prime = bee0_x - bee1_x
@@ -288,20 +280,9 @@ def transform_coordinates(interaction, focal_bee=0):
         bee0_coords = np.array([x_prime, y_prime])
 
         # rotation to make bee1 angle zero
-        rot_mat = np.array(
-            [
-                [np.cos(-bee1_theta), -np.sin(-bee1_theta)],
-                [np.sin(-bee1_theta), np.cos(-bee1_theta)],
-            ]
-        )
-        transformed = rot_mat @ bee0_coords
+        transformed = rotate(-bee1_theta, bee0_coords)
 
-        return (
-            transformed[0],
-            transformed[1],
-            bee0_theta - bee1_theta
-        )
-
+        return transformed[0], transformed[1], bee0_theta - bee1_theta
 
 def apply_transformation(interaction_df):
     # apply transformation of coordinates
@@ -579,33 +560,34 @@ def compute_interaction_points(interaction_df, overlap_dict):
     return counts, avg_vel
 
 
-def create_overlap_dict(interaction_df):
+def create_overlap_dict(interaction_df, focal_id):
     overlap_dict = {}
     for index, row in interaction_df.iterrows():
-        overlap_dict[index] = get_bee_body_overlap(row)
+        overlap_dict[index] = get_bee_body_overlap(row, focal_id).ravel()
     return overlap_dict
 
 
 def recreate_overlap_dict_from_df(overlap_df):
     overlap_dict_new = {}
     for column in overlap_df.columns:
-        overlap_dict_new[column] = overlap_df[column].to_numpy().reshape((29, 29))
+        overlap_dict_new[column] = overlap_df[column].to_numpy().reshape((8, 16))
     return overlap_dict_new
 
 
-def get_bee_body_overlap(interaction_df_row):
+def get_bee_body_overlap(interaction_df_row, focal_id):
     # create mask for focal bee
     focal_bee = np.zeros((29, 29))
     focal_bee[10:19, 5:21] = 1
+
     # get coordinates of interacting bee
     x, y, theta = interaction_df_row[
-        ["x_pos_start_focal", "y_pos_start_focal", "theta_start_focal"]
-    ]
+            [f"focal{focal_id}_x_trans", f"focal{focal_id}_y_trans", f"focal{focal_id}_theta_trans"]
+        ]
     # create mask for non-focal bee
     non_focal_bee = get_non_focal_bee_mask(x, y, theta)
     # get overlap
     overlap = np.logical_and(focal_bee, non_focal_bee)
-    return overlap
+    return overlap[10:19, 5:21]
 
 
 def filter_combined_interaction_df_by_overlaps(combined_df, overlap_df):
