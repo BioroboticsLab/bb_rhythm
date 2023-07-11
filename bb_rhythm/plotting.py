@@ -779,3 +779,232 @@ def plot_p_values_per_bin_from_test(
     if plot_path:
         plt.savefig(plot_path)
     return ax
+
+
+def extract_fit_parameters(circadianess_df):
+    # extract parameters (amplitude, phase, offset) from fit
+    amplitude = []
+    phase = []
+    offset = []
+    for p in circadianess_df["parameters"]:
+        amplitude.append(p[0])
+        phase.append(p[1])
+        offset.append(p[2])
+    circadianess_df["amplitude"] = amplitude
+    circadianess_df["phase"] = phase
+    circadianess_df["offset"] = offset
+    return circadianess_df
+
+
+def get_label_for_line(line):
+    leg = line.axes.get_legend()
+    ind = line.axes.get_lines().index(line)
+    return leg.texts[ind].get_text(), leg.get_lines()[ind].get_color()
+
+
+def set_label_for_line(line, label):
+    leg = line.axes.get_legend()
+    ind = line.axes.get_lines().index(line)
+    leg.texts[ind].set_text(label)
+
+
+def apply_three_group_age_map_for_plotting_phase(circadianess_df):
+    # subgroup them by age and replace in human-readable form
+    utils.add_age_bins(circadianess_df, age_bins=[-1, 0, 10, 25])
+
+    # format
+    age_dict = {
+        "(0.0, 10.0]": "Age < 10 days",
+        "(10.0, 25.0]": "Age >= 10, < 25 days",
+        ("(25.0, %s]" % str(float(circadianess_df.age.max()))): "Age >= 25 days",
+        "(-1.0, 0.0]": "Nan",
+        "nan": "Nan",
+    }
+    circadianess_df["Age [days]"] = [
+        age_dict[str(item)] for item in circadianess_df["age_bins"]
+    ]
+    return circadianess_df
+
+
+def plot_histogram_cosine_fit(circadianess_df, plot_path=None):
+    sns.set_theme()
+
+    # plot histogram grouped phase distribution by age
+    fig, ax1 = plt.subplots(figsize=(16, 10))
+
+    # map time interval of [-pi, pi] to 24h
+    circadianess_df["phase_plt"] = (circadianess_df["phase"] * (12 / np.pi)) + 12
+    circadianess_df = circadianess_df[circadianess_df["Age [days]"] != "Nan"]
+    circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= 0]
+    circadianess_df = circadianess_df[circadianess_df["phase_plt"] < 24]
+
+    # plot histogram
+    sns.histplot(
+        circadianess_df,
+        x="phase_plt",
+        hue="Age [days]",
+        common_norm=False,
+        kde=True,
+        element="step",
+        stat="probability",
+        ax=ax1,
+        hue_order=["Age < 10 days", "Age >= 10, < 25 days", "Age >= 25 days"],
+    )
+    plt.xlabel("Phase in (h)")
+    plt.ylabel("Frequency")
+    plt.title("Phase distribution")
+    plt.grid(visible=True)
+    if plot_path:
+        plt.savefig(plot_path)
+
+
+def plot_histogram_sine_fit(circadianess_df, plot_path=None):
+    sns.set_theme()
+
+    # plot histogram grouped phase distribution by age
+    fig, ax1 = plt.subplots(figsize=(16, 10))
+
+    # map time interval of [-pi, pi] to 24h
+    circadianess_df["phase_plt"] = circadianess_df["phase"] * (12 / np.pi)
+    circadianess_df_plt = circadianess_df[circadianess_df["Age [days]"] != "Nan"]
+    circadianess_df_plt["phase_plt"] = circadianess_df_plt["phase_plt"] + np.where(
+        circadianess_df_plt["phase_plt"] < 0, 24, 0
+    )
+
+    # filter data with phase outside day out
+    circadianess_df_plt = circadianess_df_plt[circadianess_df_plt["phase_plt"] >= 0]
+    circadianess_df_plt = circadianess_df_plt[circadianess_df_plt["phase_plt"] < 24]
+
+    # plot histogram
+    sns.histplot(
+        circadianess_df_plt,
+        x="phase_plt",
+        hue="Age [days]",
+        common_norm=False,
+        kde=True,
+        element="step",
+        stat="probability",
+        ax=ax1,
+        hue_order=["Age < 10 days", "Age >= 10, < 25 days", "Age >= 25 days"],
+    )
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(2))
+    plt.xlabel("Phase in (h)")
+    plt.ylabel("Frequency")
+    plt.title("Phase distribution")
+    plt.grid(visible=True)
+
+    # save figure
+    if plot_path:
+        plt.savefig(plot_path)
+
+
+def plot_phase_per_age_group(circadianess_df, plot_path=None, fit_type="cosine"):
+    # add age bins
+    circadianess_df = apply_three_group_age_map_for_plotting_phase(circadianess_df)
+
+    # plot
+    if fit_type == "cosine":
+        plot_histogram_cosine_fit(circadianess_df, plot_path=plot_path)
+    else:
+        plot_histogram_sine_fit(circadianess_df, plot_path=plot_path)
+
+
+def plot_phase_per_age(circadianess_df, plot_path=None, annotate=True):
+    # filter data
+    circadianess_df = circadianess_df[circadianess_df["age"] >= 0]
+
+    # map time interval of [-pi, pi] to 24h
+    circadianess_df["phase_plt"] = (circadianess_df["phase"] * (12 / np.pi)) + 12
+    circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= 0]
+    circadianess_df = circadianess_df[circadianess_df["phase_plt"] < 24]
+
+    # Plotting
+    # set seaborn parameters so grid is visible
+    sns.set_theme()
+
+    # plot histogram grouped phase distribution by age
+    fig, (ax1, ax2, ax23, ax3) = plt.subplots(
+        1, 4, figsize=(30, 8), gridspec_kw={"width_ratios": [1, 2, 1, 0.05]}
+    )
+
+    # plot histogram
+    sns.kdeplot(
+        circadianess_df,
+        x="phase_plt",
+        hue="age",
+        common_norm=False,
+        ax=ax1,
+        palette="viridis",
+    )
+
+    # plot maxima
+    label_col_dict = {}
+    scatter_coords = []
+    for line in ax1.lines:
+        label, label_col = get_label_for_line(line)
+        label_col_dict[label_col] = label
+    for line in ax1.lines:
+        xs, ys = line.get_data()
+        line_col = line.get_color()
+        mode_idx = np.argmax(ys)
+        ax2.vlines(xs[mode_idx], 0, ys[mode_idx], ls="--", colors=line_col)
+        ax2.plot([xs[mode_idx]], [np.max(ys)], marker="o", markersize=3, color=line_col)
+        ax2.text(
+            xs[mode_idx],
+            -0.055,
+            s=str(label_col_dict[line_col])
+            + ": "
+            + str(np.round(xs[mode_idx], 2))
+            + "h",
+            ha="center",
+            color=line_col,
+            rotation=90,
+            **{"size": "8"}
+        )
+        scatter_coords.append(
+            {"age": label_col_dict[line_col], "max": xs[mode_idx], "col": line_col}
+        )
+
+    # Remove the legend and add a colorbar
+    norm = plt.Normalize(circadianess_df["age"].min(), circadianess_df["age"].max())
+    sm = plt.cm.ScalarMappable(cmap="viridis", norm=norm)
+    scatter_df = pd.DataFrame(scatter_coords)
+    scatter_df["counts"] = [
+        circadianess_df["age"].value_counts().to_dict()[float(value)]
+        for value in scatter_df["age"]
+    ]
+    scatter_df["age"] = scatter_df["age"].astype(float)
+    sns.scatterplot(
+        data=scatter_df,
+        x="age",
+        y="max",
+        color=scatter_df["col"],
+        ax=ax23,
+        size="counts",
+    )
+    if annotate:
+        for x, y, count in zip(
+            scatter_df["age"], scatter_df["max"], scatter_df["counts"]
+        ):
+            ax23.annotate(count, xy=(x, y))
+    ax1.get_legend().remove()
+    ax3.figure.colorbar(sm, cax=ax3)
+
+    # labels and axis settings
+    ax1.sharey(ax2)
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(2))
+    ax23.xaxis.set_major_locator(ticker.MultipleLocator(2))
+    ax2.set_xticks([])
+    ax2.set_ylabel("")
+    ax2.set_xlabel("")
+    ax1.set_xlabel("Phase in (h)")
+    ax1.set_ylabel("Frequency")
+    ax1.set_title("Phase distribution")
+    ax2.set_title("Mean of phase distribution")
+    ax3.set_title("Age (days)")
+    plt.grid(visible=True)
+    plt.tight_layout()
+
+    # save figure
+    if plot_path:
+        plt.savefig(plot_path)
