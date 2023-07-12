@@ -39,3 +39,18 @@ def calculate_well_tested_circadianess(circadianess_df):
     circadianess_df["well_tested_circadianess"] = (
         circadianess_df.is_circadian * circadianess_df.is_good_fit
     )
+
+
+def extract_fit_parameters(circadianess_df):
+    # extract parameters (amplitude, phase, offset) from fit
+    amplitude = []
+    phase = []
+    offset = []
+    for p in circadianess_df["parameters"]:
+        amplitude.append(p[0])
+        phase.append(p[1])
+        offset.append(p[2])
+    circadianess_df["amplitude"] = amplitude
+    circadianess_df["phase"] = phase
+    circadianess_df["offset"] = offset
+    return circadianess_df
