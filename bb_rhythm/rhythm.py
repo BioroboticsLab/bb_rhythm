@@ -1,4 +1,5 @@
 import numpy as np
+from . import time
 
 
 def create_agg_circadian_df(circadianess_df, column="age_bins", agg_func="mean"):
@@ -39,3 +40,45 @@ def calculate_well_tested_circadianess(circadianess_df):
     circadianess_df["well_tested_circadianess"] = (
         circadianess_df.is_circadian * circadianess_df.is_good_fit
     )
+
+
+def extract_fit_parameters(circadianess_df):
+    # extract parameters (amplitude, phase, offset) from fit
+    amplitude = []
+    phase = []
+    offset = []
+    for p in circadianess_df["parameters"]:
+        amplitude.append(p[0])
+        phase.append(p[1])
+        offset.append(p[2])
+    circadianess_df["amplitude"] = amplitude
+    circadianess_df["phase"] = phase
+    circadianess_df["offset"] = offset
+    return circadianess_df
+
+
+def create_phase_plt_age_df(phase_shift=12):
+    return pd.DataFrame(
+        {
+            "phase_plt": ((time.map_pi_time_interval_to_24h(circadianess_df_plt["phase"])) + phase_shift).tolist(),
+            "Age [days]": circadianess_df_plt["Age [days]"].tolist(),
+            "age": circadianess_df_plt["age"].tolist(),
+        }
+    )
+
+
+def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time=None):
+    if fit_type == "cosine":
+        time_shift = 12
+    else:
+        time_shift = 0
+    if time:
+        time_shift = circadianess_df["time_reference"]
+    circadianess_df["phase_plt"] = time.map_pi_time_interval_to_24h(circadianess_df_plt["phase"]) + time_shift
+    if time:
+        circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= (circadianess_df["time_reference"] - 12)]
+        circadianess_df = circadianess_df[circadianess_df["phase_plt"] < (circadianess_df["time_reference"] + 12)]
+    else:
+        circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= 0]
+        circadianess_df = circadianess_df[circadianess_df["phase_plt"] < 24]
+    return circadianess_df
