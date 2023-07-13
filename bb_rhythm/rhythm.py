@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from . import time
 
 
@@ -57,12 +58,12 @@ def extract_fit_parameters(circadianess_df):
     return circadianess_df
 
 
-def create_phase_plt_age_df(phase_shift=12):
+def create_phase_plt_age_df(circadianess_df, phase_shift=12):
     return pd.DataFrame(
         {
-            "phase_plt": ((time.map_pi_time_interval_to_24h(circadianess_df_plt["phase"])) + phase_shift).tolist(),
-            "Age [days]": circadianess_df_plt["Age [days]"].tolist(),
-            "age": circadianess_df_plt["age"].tolist(),
+            "phase_plt": ((time.map_pi_time_interval_to_24h(circadianess_df["phase"])) + phase_shift).tolist(),
+            "Age [days]": circadianess_df["Age [days]"].tolist(),
+            "age": circadianess_df["age"].tolist(),
         }
     )
 
@@ -74,7 +75,7 @@ def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time_reference=None)
         time_shift = 0
     if time_reference:
         time_shift = circadianess_df["time_reference"]
-    circadianess_df["phase_plt"] = time.map_pi_time_interval_to_24h(circadianess_df_plt["phase"]) + time_shift
+    circadianess_df["phase_plt"] = time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
     if time_reference:
         circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= (circadianess_df["time_reference"] - 12)]
         circadianess_df = circadianess_df[circadianess_df["phase_plt"] < (circadianess_df["time_reference"] + 12)]
