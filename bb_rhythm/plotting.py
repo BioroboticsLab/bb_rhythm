@@ -816,28 +816,14 @@ def apply_three_group_age_map_for_plotting_phase(circadianess_df):
     circadianess_df["Age [days]"] = [
         age_dict[str(item)] for item in circadianess_df["age_bins"]
     ]
-
+    circadianess_df = circadianess_df[circadianess_df["Age [days]"] != "Nan"]
     return circadianess_df
 
 
-#TODO: REFACTOR
-def plot_histogram_cosine_fit(circadianess_df, plot_path=None, time=None):
-    # map time interval of [-pi, pi] to 24h
-    time_shift = 12
-    if time:
-        time_shift = circadianess_df["time_reference"]
-    circadianess_df["phase_plt"] = (circadianess_df["phase"] * (12 / np.pi)) + time_shift
-    circadianess_df = circadianess_df[circadianess_df["Age [days]"] != "Nan"]
-    if time:
-        circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= (circadianess_df["time_reference"] - 12)]
-        circadianess_df = circadianess_df[circadianess_df["phase_plt"] < (circadianess_df["time_reference"] + 12)]
-    else:
-        circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= 0]
-        circadianess_df = circadianess_df[circadianess_df["phase_plt"] < 24]
-
+def plot_histogram_phase_dist(circadianess_df, plot_path=None):
     # plot histogram grouped phase distribution by age
     sns.set_theme()
-    fig, ax1 = plt.subplots(figsize=(16, 10))
+    fig, ax = plt.subplots(figsize=(16, 10))
     sns.histplot(
         circadianess_df,
         x="phase_plt",
@@ -846,9 +832,10 @@ def plot_histogram_cosine_fit(circadianess_df, plot_path=None, time=None):
         kde=True,
         element="step",
         stat="probability",
-        ax=ax1,
+        ax=ax,
         hue_order=["Age < 10 days", "Age >= 10, < 25 days", "Age >= 25 days"],
     )
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(2))
     plt.xlabel("Phase in (h)")
     plt.ylabel("Frequency")
     plt.title("Phase distribution")
@@ -856,68 +843,23 @@ def plot_histogram_cosine_fit(circadianess_df, plot_path=None, time=None):
     if plot_path:
         plt.savefig(plot_path)
 
-
-def plot_histogram_sine_fit(circadianess_df, plot_path=None, time=None):
-    sns.set_theme()
-
-    # plot histogram grouped phase distribution by age
-    fig, ax1 = plt.subplots(figsize=(16, 10))
-
-    time_shift = 0
-    if time:
-        time_shift = circadianess_df["time_reference"]
-    circadianess_df["phase_plt"] = (circadianess_df["phase"] * (12 / np.pi)) + time_shift
-    circadianess_df_plt = circadianess_df[circadianess_df["Age [days]"] != "Nan"]
-    circadianess_df_plt["phase_plt"] = circadianess_df_plt["phase_plt"] + np.where(
-        circadianess_df_plt["phase_plt"] < 0, 24, 0
-    )
-
-    # filter data with phase outside day out
-    circadianess_df_plt = circadianess_df_plt[circadianess_df_plt["phase_plt"] >= 0]
-    circadianess_df_plt = circadianess_df_plt[circadianess_df_plt["phase_plt"] < 24]
-
-    # plot histogram
-    sns.histplot(
-        circadianess_df_plt,
-        x="phase_plt",
-        hue="Age [days]",
-        common_norm=False,
-        kde=True,
-        element="step",
-        stat="probability",
-        ax=ax1,
-        hue_order=["Age < 10 days", "Age >= 10, < 25 days", "Age >= 25 days"],
-    )
-    ax1.xaxis.set_major_locator(ticker.MultipleLocator(2))
-    plt.xlabel("Phase in (h)")
-    plt.ylabel("Frequency")
-    plt.title("Phase distribution")
-    plt.grid(visible=True)
-
-    # save figure
-    if plot_path:
-        plt.savefig(plot_path)
 
 
 def plot_phase_per_age_group(circadianess_df, plot_path=None, fit_type="cosine", time=None):
     # add age bins
     circadianess_df = apply_three_group_age_map_for_plotting_phase(circadianess_df)
-
+    # map time interval of [-pi, pi] to 24h
+    circadianess_df = rhythm.add_phase_plt_to_df(circadianess_df, fit_type=fit_type, time=time)
     # plot
-    if fit_type == "cosine":
-        plot_histogram_cosine_fit(circadianess_df, plot_path=plot_path, time=time)
-    else:
-        plot_histogram_sine_fit(circadianess_df, plot_path=plot_path, time=time)
+    plot_histogram_phase_dist(circadianess_df, plot_path=plot_path)
 
 
-def plot_phase_per_age(circadianess_df, plot_path=None, annotate=True):
+def plot_phase_per_age(circadianess_df, plot_path=None, annotate=True, fit_type="cosine", time=None):
     # filter data
     circadianess_df = circadianess_df[circadianess_df["age"] >= 0]
 
     # map time interval of [-pi, pi] to 24h
-    circadianess_df["phase_plt"] = (circadianess_df["phase"] * (12 / np.pi)) + 12
-    circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= 0]
-    circadianess_df = circadianess_df[circadianess_df["phase_plt"] < 24]
+    circadianess_df = rhythm.add_phase_plt_to_df(circadianess_df, fit_type=fit_type, time=time)
 
     # Plotting
     # set seaborn parameters so grid is visible

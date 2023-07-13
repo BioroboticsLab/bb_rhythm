@@ -1,6 +1,7 @@
 from suncalc import get_times
 import datetime
 import pandas as pd
+import numpy as np
 
 
 class SolarTimeConverter:
@@ -31,23 +32,22 @@ class SolarTimeConverter:
         time_shift = pd.to_timedelta(solar_reference - pd.Timestamp(datetime.datetime(*time_utc.timetuple()[:3]))) / pd.offsets.Hour(1)
         return time_shift
 
-    def convert_local_mean_time_to_utc(self):
-        pass
-
-    def convert_utc_to_solar_time(self):
-        pass
-
-    def convert_solar_time_to_utc(self):
-        pass
-
-    def convert_local_mean_time_to_solar_time(self):
-        pass
-
-    def convert_solar_time_to_local_mean_time(self):
-        pass
-
 
 def get_coordinates_berlin():
     latitude = 52.5
     longitude = 13.4
     return latitude, longitude
+
+
+def apply_time_wrapper_berlin(df, reference="sunrise"):
+    # create time converter
+    latitude, longitude = time.get_coordinates_berlin()
+    berlin_time_converter = time.SolarTimeConverter(latitude, longitude)
+    # get reference time for sunset
+    df["time_reference"] = df.date.apply(
+        berlin_time_converter.get_time_shift_relative_to_solar_reference,
+        reference=reference,
+    )
+
+def map_pi_time_interval_to_24h(pi_time):
+    return pi_time * (12 / np.pi)
