@@ -57,7 +57,7 @@ def extract_fit_parameters(circadianess_df):
     return circadianess_df
 
 
-def create_phase_plt_age_df(circadianess_df_plt, phase_shift=12):
+def create_phase_plt_age_df(phase_shift=12):
     return pd.DataFrame(
         {
             "phase_plt": ((time.map_pi_time_interval_to_24h(circadianess_df_plt["phase"])) + phase_shift).tolist(),
@@ -67,15 +67,15 @@ def create_phase_plt_age_df(circadianess_df_plt, phase_shift=12):
     )
 
 
-def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time=None):
+def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time_reference=None):
     if fit_type == "cosine":
         time_shift = 12
     else:
         time_shift = 0
-    if time:
+    if time_reference:
         time_shift = circadianess_df["time_reference"]
-    circadianess_df["phase_plt"] = time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
-    if time:
+    circadianess_df["phase_plt"] = time.map_pi_time_interval_to_24h(circadianess_df_plt["phase"]) + time_shift
+    if time_reference:
         circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= (circadianess_df["time_reference"] - 12)]
         circadianess_df = circadianess_df[circadianess_df["phase_plt"] < (circadianess_df["time_reference"] + 12)]
     else:
