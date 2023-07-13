@@ -839,21 +839,21 @@ def plot_histogram_phase_dist(circadianess_df, plot_path=None):
 
 
 
-def plot_phase_per_age_group(circadianess_df, plot_path=None, fit_type="cosine", time=None):
+def plot_phase_per_age_group(circadianess_df, plot_path=None, fit_type="cosine", time_reference=None):
     # add age bins
     circadianess_df = apply_three_group_age_map_for_plotting_phase(circadianess_df)
     # map time interval of [-pi, pi] to 24h
-    circadianess_df = rhythm.add_phase_plt_to_df(circadianess_df, fit_type=fit_type, time=time)
+    circadianess_df = rhythm.add_phase_plt_to_df(circadianess_df, fit_type=fit_type, time_reference=time_reference)
     # plot
     plot_histogram_phase_dist(circadianess_df, plot_path=plot_path)
 
 
-def plot_phase_per_age(circadianess_df, plot_path=None, annotate=True, fit_type="cosine", time=None):
+def plot_phase_per_age(circadianess_df, plot_path=None, annotate=True, fit_type="cosine", time_reference=None):
     # filter data
     circadianess_df = circadianess_df[circadianess_df["age"] >= 0]
 
     # map time interval of [-pi, pi] to 24h
-    circadianess_df = rhythm.add_phase_plt_to_df(circadianess_df, fit_type=fit_type, time=time)
+    circadianess_df = rhythm.add_phase_plt_to_df(circadianess_df, fit_type=fit_type, time_reference=time_reference)
 
     # Plotting
     # set seaborn parameters so grid is visible
