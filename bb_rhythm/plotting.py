@@ -945,3 +945,10 @@ def plot_phase_per_age(circadianess_df, plot_path=None, annotate=True, fit_type=
     # save figure
     if plot_path:
         plt.savefig(plot_path)
+
+
+def plot_phase_per_date(phase_per_date_df, plot_path):
+    fig, ax = plt.subplots(2, 1)
+    sns.lineplot(data=phase_per_date_df, x="date", y="phase_mean", hue="age_group", ax=ax[0])
+    sns.lineplot(data=phase_per_date_df, x="date", y="phase_std", hue="age_group", ax=ax[0])
+    plt.savefig(plot_path)
