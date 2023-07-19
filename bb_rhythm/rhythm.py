@@ -3,6 +3,60 @@ import pandas as pd
 from . import time
 
 
+def fit_circadianess_fit_per_bee(server=None, day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None):
+    if bee_age == -1 or bee_age == 0:
+        return {None: dict(error="Bee is already dead or new to colony..")}
+
+    with server:
+        # fetch velocities
+        velocities = bb_behavior.db.trajectory.get_bee_velocities(
+            bee_id, from_dt, to_dt, confidence_threshold=0.1, max_mm_per_second=15.0
+        )
+
+        if velocities is None:
+            return {None: dict(error="No velocities could be fetched..")}
+
+        try:
+            # get right data types
+            day = datetime.datetime.fromisoformat(day)
+            assert day.tzinfo == datetime.timezone.utc
+            day = day.replace(tzinfo=pytz.UTC)
+
+            # remove NaNs and infs
+            velocities = velocities[~pd.isnull(velocities.velocity)]
+
+            # calculate circadianess
+            data = bb_circadian.lombscargle.collect_circadianess_data_for_bee_date(
+                bee_id, day, velocities=velocities, n_workers=0
+            )
+            if data:
+                # add parameters
+                data["age"] = bee_age
+                # parameters for quality of velocities
+                add_velocity_quality_params(data, velocities)
+                # extract from parameters of fit
+                extract_parameters_from_circadian_fit(data)
+            else:
+                assert ValueError
+        except (AssertionError, ValueError, IndexError, RuntimeError):
+            data = {None: dict(error="Something went wrong during the fit..")}
+        return data
+
+
+def extract_parameters_from_circadian_fit(data):
+    data["amplitude"] = data["parameters"][0]
+    data["phase"] = data["parameters"][1]
+    data["offset"] = data["parameters"][2]
+
+
+def add_velocity_quality_params(data, velocities):
+    data["n_data_points"] = len(velocities)
+    data["data_point_dist_max"] = velocities["time_passed"].max()
+    data["data_point_dist_min"] = velocities["time_passed"].min()
+    data["data_point_dist_mean"] = velocities["time_passed"].mean()
+    data["data_point_dist_median"] = velocities["time_passed"].median()
+
+
 def create_agg_circadian_df(circadianess_df, column="age_bins", agg_func="mean"):
     return (
         circadianess_df.pivot_table(
