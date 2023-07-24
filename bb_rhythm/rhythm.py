@@ -334,3 +334,42 @@ def create_phase_per_date_df(circadianess_df):
                 }
             )
     return pd.DataFrame(phase_per_date_df_ls)
+
+
+def get_overall_velocity_mean(from_dt, to_dt):
+    # get alive bees
+    alive_bees = list(bb_behavior.db.get_alive_bees(from_dt, to_dt))[0:1]
+
+    velocities = pd.DataFrame(columns=["velocity", "datetime"])
+    # iterate through all bees
+    for bee_id in alive_bees:
+        # fetch velocities
+        velocities = pd.concat(
+            [velocities,
+            bb_behavior.db.trajectory.get_bee_velocities(
+                bee_id, from_dt, to_dt, confidence_threshold=0.1, max_mm_per_second=15.0
+            )[["velocity", "datetime"]]],
+            axis=0
+        )
+    velocities = (
+        velocities.groupby(["datetime"])["velocity"].mean().reset_index()
+    )
+    return velocities
+
+def get_normalized_velocities(dt_from, dt_to):
+    velocities_mean = get_overall_velocity_mean(dt_from - datetime.timedelta(hours=6), dt_to + datetime.timedelta(hours=6))[["velocity", "datetime"]]
+    velocities_mean["velocity_normalized"] = velocities_mean.velocity.values - velocities_mean.set_index("datetime").rolling('12h').mean().reset_index()["velocity"].values
+    return velocities_mean[(dt_from <= velocities_mean.datetime) & (velocities_mean.datetime < dt_to)].reset_index()
+
+
+def get_constant_fit(velocities):
+    if "offset" in velocities.columns:
+        ts = velocities.offset.values
+    else:
+        ts = np.array([t.total_seconds() for t in velocities.datetime - pd.to_datetime(velocities.datetime.dt.date, utc=True)])
+    v = velocities.velocity.values
+    assert v.shape[0] == ts.shape[0]
+    constant_fit = np.polynomial.polynomial.Polynomial.fit(
+        ts, v, deg=0
+    )
+    return constant_fit
