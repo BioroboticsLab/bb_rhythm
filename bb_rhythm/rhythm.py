@@ -35,7 +35,7 @@ def fit_circadian_cosine(X, Y, phase=0):
     bounds = [(0, -np.inf, 0), (np.inf, np.inf, np.inf)]
     fit = scipy.optimize.curve_fit(circadian_cosine, X, Y, p0=initial_parameters, bounds=bounds)
     circadian_cosine_parameters = fit[0]
-    y_predicted = fun(X, *circadian_cosine_parameters)
+    y_predicted = circadian_cosine(X, *circadian_cosine_parameters)
     circadian_sse = np.sum((y_predicted - Y) ** 2.0)
 
     constant_fit, full_data = numpy.polynomial.polynomial.Polynomial.fit(X, Y, deg=0, full=True)
