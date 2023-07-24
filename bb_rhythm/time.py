@@ -27,9 +27,13 @@ class SolarTimeConverter:
         # get difference to utc time
         return solar_reference
 
-    def get_time_shift_relative_to_solar_reference(self, time_utc, reference="solar_noon"):
+    def get_time_shift_relative_to_solar_reference(
+        self, time_utc, reference="solar_noon"
+    ):
         solar_reference = self.get_solar_reference(time_utc, reference=reference)
-        time_shift = pd.to_timedelta(solar_reference - pd.Timestamp(datetime.datetime(*time_utc.timetuple()[:3]))) / pd.offsets.Hour(1)
+        time_shift = pd.to_timedelta(
+            solar_reference - pd.Timestamp(datetime.datetime(*time_utc.timetuple()[:3]))
+        ) / pd.offsets.Hour(1)
         return time_shift
 
 
@@ -48,6 +52,7 @@ def apply_time_wrapper_berlin(df, reference="sunrise"):
         berlin_time_converter.get_time_shift_relative_to_solar_reference,
         reference=reference,
     )
+
 
 def map_pi_time_interval_to_24h(pi_time):
     return pi_time * (12 / np.pi)

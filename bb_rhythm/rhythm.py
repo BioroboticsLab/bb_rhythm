@@ -9,10 +9,12 @@ import bb_behavior.db
 
 from . import time, plotting
 
+
 # This is copied and modified from bb_circadian.lombscargle
 def circadian_cosine(x, amplitude, phase, offset):
     frequency = 2.0 * np.pi * 1 / 60 / 60 / 24
     return np.cos(x * frequency - phase) * amplitude + offset
+
 
 # This is copied and modified from bb_circadian.lombscargle
 def fit_circadian_cosine(X, Y, phase=0):
@@ -28,36 +30,48 @@ def fit_circadian_cosine(X, Y, phase=0):
     Returns:
         Dictionary with all information about a fit.
     """
-    amplitude = 3 * np.std(Y) / (2 ** 0.5)
+    amplitude = 3 * np.std(Y) / (2**0.5)
     phase = phase
     offset = np.mean(Y)
     initial_parameters = [amplitude, phase, offset]
     bounds = [(0, -np.inf, 0), (np.inf, np.inf, np.inf)]
-    fit = scipy.optimize.curve_fit(circadian_cosine, X, Y, p0=initial_parameters, bounds=bounds)
+    fit = scipy.optimize.curve_fit(
+        circadian_cosine, X, Y, p0=initial_parameters, bounds=bounds
+    )
     circadian_cosine_parameters = fit[0]
     y_predicted = circadian_cosine(X, *circadian_cosine_parameters)
     circadian_sse = np.sum((y_predicted - Y) ** 2.0)
 
-    constant_fit, full_data = numpy.polynomial.polynomial.Polynomial.fit(X, Y, deg=0, full=True)
+    constant_fit, full_data = np.polynomial.polynomial.Polynomial.fit(
+        X, Y, deg=0, full=True
+    )
     constant_sse = full_data[0][0]
 
-    linear_fit, full_data = numpy.polynomial.polynomial.Polynomial.fit(X, Y, deg=1, full=True)
+    linear_fit, full_data = np.polynomial.polynomial.Polynomial.fit(
+        X, Y, deg=1, full=True
+    )
     linear_sse = full_data[0][0]
 
     r_squared_linear = 1.0 - (circadian_sse / linear_sse)
     r_squared = 1.0 - (circadian_sse / constant_sse)
 
-    return dict(parameters=circadian_cosine_parameters, jacobian=fit[1],
-                circadian_sse=circadian_sse,
-                angular_frequency=2.0 * np.pi * 1 / 60 / 60 / 24,
-                linear_parameters=linear_fit.convert().coef,
-                linear_sse=linear_sse,
-                constant_parameters=constant_fit.convert().coef,
-                constant_sse=constant_sse,
-                r_squared=r_squared, r_squared_linear=r_squared_linear)
+    return dict(
+        parameters=circadian_cosine_parameters,
+        jacobian=fit[1],
+        circadian_sse=circadian_sse,
+        angular_frequency=2.0 * np.pi * 1 / 60 / 60 / 24,
+        linear_parameters=linear_fit.convert().coef,
+        linear_sse=linear_sse,
+        constant_parameters=constant_fit.convert().coef,
+        constant_sse=constant_sse,
+        r_squared=r_squared,
+        r_squared_linear=r_squared_linear,
+    )
 
 
-def collect_fit_data_for_bee_date(bee_id, date, velocities=None, delta=datetime.timedelta(days=1, hours=12), phase=0):
+def collect_fit_data_for_bee_date(
+    bee_id, date, velocities=None, delta=datetime.timedelta(days=1, hours=12), phase=0
+):
     if "offset" in velocities.columns:
         ts = velocities.offset.values
     else:
@@ -92,7 +106,9 @@ def collect_fit_data_for_bee_date(bee_id, date, velocities=None, delta=datetime.
     return bee_date_data
 
 
-def fit_circadianess_fit_per_bee_phase_variation(day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None, phases=None):
+def fit_circadianess_fit_per_bee_phase_variation(
+    day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None, phases=None
+):
     if bee_age == -1 or bee_age == 0:
         return {None: dict(error="Bee is already dead or new to colony..")}
 
@@ -133,43 +149,45 @@ def fit_circadianess_fit_per_bee_phase_variation(day=None, bee_id=None, from_dt=
     return data
 
 
-def fit_circadianess_fit_per_bee(day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None):
-        if bee_age == -1 or bee_age == 0:
-            return {None: dict(error="Bee is already dead or new to colony..")}
+def fit_circadianess_fit_per_bee(
+    day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None
+):
+    if bee_age == -1 or bee_age == 0:
+        return {None: dict(error="Bee is already dead or new to colony..")}
 
-        # fetch velocities
-        velocities = bb_behavior.db.trajectory.get_bee_velocities(
-            bee_id, from_dt, to_dt, confidence_threshold=0.1, max_mm_per_second=15.0
+    # fetch velocities
+    velocities = bb_behavior.db.trajectory.get_bee_velocities(
+        bee_id, from_dt, to_dt, confidence_threshold=0.1, max_mm_per_second=15.0
+    )
+
+    if velocities is None:
+        return {None: dict(error="No velocities could be fetched..")}
+
+    try:
+        # get right data types
+        day = datetime.datetime.fromisoformat(day)
+        assert day.tzinfo == datetime.timezone.utc
+        day = day.replace(tzinfo=pytz.UTC)
+
+        # remove NaNs and infs
+        velocities = velocities[~pd.isnull(velocities.velocity)]
+
+        # calculate circadianess
+        data = bb_circadian.lombscargle.collect_circadianess_data_for_bee_date(
+            bee_id, day, velocities=velocities, n_workers=0
         )
-
-        if velocities is None:
-            return {None: dict(error="No velocities could be fetched..")}
-
-        try:
-            # get right data types
-            day = datetime.datetime.fromisoformat(day)
-            assert day.tzinfo == datetime.timezone.utc
-            day = day.replace(tzinfo=pytz.UTC)
-
-            # remove NaNs and infs
-            velocities = velocities[~pd.isnull(velocities.velocity)]
-
-            # calculate circadianess
-            data = bb_circadian.lombscargle.collect_circadianess_data_for_bee_date(
-                bee_id, day, velocities=velocities, n_workers=0
-            )
-            if data:
-                # add parameters
-                data["age"] = bee_age
-                # parameters for quality of velocities
-                add_velocity_quality_params(data, velocities)
-                # extract from parameters of fit
-                extract_parameters_from_circadian_fit(data)
-            else:
-                assert ValueError
-        except (AssertionError, ValueError, IndexError, RuntimeError):
-            data = {None: dict(error="Something went wrong during the fit..")}
-        return data
+        if data:
+            # add parameters
+            data["age"] = bee_age
+            # parameters for quality of velocities
+            add_velocity_quality_params(data, velocities)
+            # extract from parameters of fit
+            extract_parameters_from_circadian_fit(data)
+        else:
+            assert ValueError
+    except (AssertionError, ValueError, IndexError, RuntimeError):
+        data = {None: dict(error="Something went wrong during the fit..")}
+    return data
 
 
 def extract_parameters_from_circadian_fit(data):
@@ -244,7 +262,10 @@ def extract_fit_parameters(circadianess_df):
 def create_phase_plt_age_df(circadianess_df, phase_shift=12):
     return pd.DataFrame(
         {
-            "phase_plt": ((time.map_pi_time_interval_to_24h(circadianess_df["phase"])) + phase_shift).tolist(),
+            "phase_plt": (
+                (time.map_pi_time_interval_to_24h(circadianess_df["phase"]))
+                + phase_shift
+            ).tolist(),
             "Age [days]": circadianess_df["Age [days]"].tolist(),
             "age": circadianess_df["age"].tolist(),
         }
@@ -258,11 +279,19 @@ def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time_reference=None)
         time_shift = 0
     if time_reference:
         time_shift = circadianess_df["time_reference"]
-    circadianess_df["phase_plt"] = time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
-    circadianess_df["phase_plt"] = circadianess_df["phase_plt"] + np.where(circadianess_df["phase_plt"] < 0, 24, 0)
+    circadianess_df["phase_plt"] = (
+        time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
+    )
+    circadianess_df["phase_plt"] = circadianess_df["phase_plt"] + np.where(
+        circadianess_df["phase_plt"] < 0, 24, 0
+    )
     if time_reference:
-        circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= (circadianess_df["time_reference"] - 12)]
-        circadianess_df = circadianess_df[circadianess_df["phase_plt"] < (circadianess_df["time_reference"] + 12)]
+        circadianess_df = circadianess_df[
+            circadianess_df["phase_plt"] >= (circadianess_df["time_reference"] - 12)
+        ]
+        circadianess_df = circadianess_df[
+            circadianess_df["phase_plt"] < (circadianess_df["time_reference"] + 12)
+        ]
     else:
         circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= 0]
         circadianess_df = circadianess_df[circadianess_df["phase_plt"] < 24]
@@ -270,7 +299,9 @@ def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time_reference=None)
 
 
 def create_phase_per_date_df(circadianess_df):
-    circadianess_df_plt = plotting.apply_three_group_age_map_for_plotting_phase(circadianess_df)
+    circadianess_df_plt = plotting.apply_three_group_age_map_for_plotting_phase(
+        circadianess_df
+    )
 
     # map time interval of [-pi, pi] to 24h
     df_phase_utc = pd.DataFrame(
@@ -291,7 +322,15 @@ def create_phase_per_date_df(circadianess_df):
             df_phase_utc_subset = date_df[date_df["Age [days]"] == age_group]
 
             # fit normal distribution
-            dist_args_utc = scipy.stats.norm.fit(df_phase_utc_subset["phase_plt"].to_numpy())
+            dist_args_utc = scipy.stats.norm.fit(
+                df_phase_utc_subset["phase_plt"].to_numpy()
+            )
             phase_per_date_df_ls.append(
-                {"date": date, "phase_mean": dist_args_utc[0], "phase_std": dist_args_utc[1], "age_group": age_group})
+                {
+                    "date": date,
+                    "phase_mean": dist_args_utc[0],
+                    "phase_std": dist_args_utc[1],
+                    "age_group": age_group,
+                }
+            )
     return pd.DataFrame(phase_per_date_df_ls)
