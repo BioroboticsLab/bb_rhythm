@@ -763,13 +763,33 @@ def plot_p_values_per_bin_from_test(
     sns.heatmap(data=p_values, ax=ax, annot=True, cmap="rocket", norm=norm)
     ax.invert_yaxis()
     ax.set_title("P-values")
-    x_labels = np.array([[key[0] for key in test_result_dict][i] for i in range(0, n_bins*n_bins, n_bins)])
-    y_labels = np.array([[key[1] for key in test_result_dict][i] for i in range(0, n_bins*n_bins, n_bins)])
+    x_labels = np.array(
+        [
+            [key[0] for key in test_result_dict][i]
+            for i in range(0, n_bins * n_bins, n_bins)
+        ]
+    )
+    y_labels = np.array(
+        [
+            [key[1] for key in test_result_dict][i]
+            for i in range(0, n_bins * n_bins, n_bins)
+        ]
+    )
     # case for comparison tests
     if x_labels.ndim > 1:
         x_labels_copy = x_labels.copy()
-        x_labels = [f'({x_label[1].left}, {x_label[1].right}]\n({y_label[1].left}, {y_label[1].right}]' for x_label, y_label in zip(x_labels.reshape((n_bins, 2)), y_labels.reshape((n_bins, 2)))]
-        y_labels = [f'({x_label[0].left}, {x_label[0].right}]\n({y_label[0].left}, {y_label[0].right}]' for x_label, y_label in zip(x_labels_copy.reshape((n_bins, 2)), y_labels.reshape((n_bins, 2)))]
+        x_labels = [
+            f"({x_label[1].left}, {x_label[1].right}]\n({y_label[1].left}, {y_label[1].right}]"
+            for x_label, y_label in zip(
+                x_labels.reshape((n_bins, 2)), y_labels.reshape((n_bins, 2))
+            )
+        ]
+        y_labels = [
+            f"({x_label[0].left}, {x_label[0].right}]\n({y_label[0].left}, {y_label[0].right}]"
+            for x_label, y_label in zip(
+                x_labels_copy.reshape((n_bins, 2)), y_labels.reshape((n_bins, 2))
+            )
+        ]
     ax.set_xticklabels(x_labels)
     ax.set_yticklabels(y_labels, rotation=0)
     ax.set(
@@ -838,22 +858,33 @@ def plot_histogram_phase_dist(circadianess_df, plot_path=None):
         plt.savefig(plot_path)
 
 
-
-def plot_phase_per_age_group(circadianess_df, plot_path=None, fit_type="cosine", time_reference=None):
+def plot_phase_per_age_group(
+    circadianess_df, plot_path=None, fit_type="cosine", time_reference=None
+):
     # add age bins
     circadianess_df = apply_three_group_age_map_for_plotting_phase(circadianess_df)
     # map time interval of [-pi, pi] to 24h
-    circadianess_df = rhythm.add_phase_plt_to_df(circadianess_df, fit_type=fit_type, time_reference=time_reference)
+    circadianess_df = rhythm.add_phase_plt_to_df(
+        circadianess_df, fit_type=fit_type, time_reference=time_reference
+    )
     # plot
     plot_histogram_phase_dist(circadianess_df, plot_path=plot_path)
 
 
-def plot_phase_per_age(circadianess_df, plot_path=None, annotate=True, fit_type="cosine", time_reference=None):
+def plot_phase_per_age(
+    circadianess_df,
+    plot_path=None,
+    annotate=True,
+    fit_type="cosine",
+    time_reference=None,
+):
     # filter data
     circadianess_df = circadianess_df[circadianess_df["age"] >= 0]
 
     # map time interval of [-pi, pi] to 24h
-    circadianess_df = rhythm.add_phase_plt_to_df(circadianess_df, fit_type=fit_type, time_reference=time_reference)
+    circadianess_df = rhythm.add_phase_plt_to_df(
+        circadianess_df, fit_type=fit_type, time_reference=time_reference
+    )
 
     # Plotting
     # set seaborn parameters so grid is visible
@@ -896,7 +927,7 @@ def plot_phase_per_age(circadianess_df, plot_path=None, annotate=True, fit_type=
             ha="center",
             color=line_col,
             rotation=90,
-            **{"size": "8"}
+            **{"size": "8"},
         )
         scatter_coords.append(
             {"age": label_col_dict[line_col], "max": xs[mode_idx], "col": line_col}
@@ -949,7 +980,11 @@ def plot_phase_per_age(circadianess_df, plot_path=None, annotate=True, fit_type=
 
 def plot_phase_per_date(phase_per_date_df, plot_path=None):
     fig, ax = plt.subplots(2, 1)
-    sns.lineplot(data=phase_per_date_df, x="date", y="phase_mean", hue="age_group", ax=ax[0])
-    sns.lineplot(data=phase_per_date_df, x="date", y="phase_std", hue="age_group", ax=ax[1])
+    sns.lineplot(
+        data=phase_per_date_df, x="date", y="phase_mean", hue="age_group", ax=ax[0]
+    )
+    sns.lineplot(
+        data=phase_per_date_df, x="date", y="phase_std", hue="age_group", ax=ax[1]
+    )
     if plot_path:
         plt.savefig(plot_path)
