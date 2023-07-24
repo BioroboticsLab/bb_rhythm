@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import datetime
 import pytz
+import scipy
 
 import bb_circadian.lombscargle
 import bb_behavior.db
