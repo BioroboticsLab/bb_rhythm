@@ -3,6 +3,8 @@ import datetime
 import pandas as pd
 import numpy as np
 
+from . import rhythm
+
 
 class SolarTimeConverter:
     def __init__(self, latitude, longitude):
@@ -45,8 +47,8 @@ def get_coordinates_berlin():
 
 def apply_time_wrapper_berlin(df, reference="sunrise"):
     # create time converter
-    latitude, longitude = time.get_coordinates_berlin()
-    berlin_time_converter = time.SolarTimeConverter(latitude, longitude)
+    latitude, longitude = get_coordinates_berlin()
+    berlin_time_converter = SolarTimeConverter(latitude, longitude)
     # get reference time for sunset
     df["time_reference"] = df.date.apply(
         berlin_time_converter.get_time_shift_relative_to_solar_reference,
@@ -56,3 +58,12 @@ def apply_time_wrapper_berlin(df, reference="sunrise"):
 
 def map_pi_time_interval_to_24h(pi_time):
     return pi_time * (12 / np.pi)
+
+
+def phase_to_utc_time(phase_df, fit_type="cosine"):
+    rhythm.add_phase_plt_to_df(phase_df)
+    if fit_type == "cosine":
+        phase = phase_df["phase_plt"] - 12
+    else:
+        phase = phase_df["phase_plt"]
+    phase_df["phase_utc"] = (phase_df.date + (np.array([datetime.timedelta(hours=p) for p in phase])))
