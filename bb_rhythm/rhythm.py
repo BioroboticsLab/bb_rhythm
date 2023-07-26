@@ -338,7 +338,7 @@ def create_phase_per_date_df(circadianess_df):
 
 def get_overall_velocity_mean(from_dt, to_dt):
     # get alive bees
-    alive_bees = list(bb_behavior.db.get_alive_bees(from_dt, to_dt))[0:1]
+    alive_bees = list(bb_behavior.db.get_alive_bees(from_dt, to_dt))
 
     velocities = pd.DataFrame(columns=["velocity", "datetime"])
     # iterate through all bees

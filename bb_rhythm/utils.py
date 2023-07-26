@@ -204,6 +204,9 @@ def calculate_regression(
         # calculate fit
         fit = sm.OLS(y, xp).fit()
 
+    elif type == "poisson":
+        fit = sm.GLM(y, X, family=sm.families.Poisson()).fit()
+
     else:
         raise NotImplementedError
 
