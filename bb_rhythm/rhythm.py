@@ -128,7 +128,7 @@ def fit_circadianess_fit_per_bee_phase_variation(
 
         # remove NaNs and infs
         velocities = velocities[~pd.isnull(velocities.velocity)]
-
+        data_lst = []
         for phase in phases:
             # calculate circadianess
             data = collect_fit_data_for_bee_date(
@@ -142,11 +142,12 @@ def fit_circadianess_fit_per_bee_phase_variation(
                 add_velocity_quality_params(data, velocities)
                 # extract from parameters of fit
                 extract_parameters_from_circadian_fit(data)
+                data_lst.append(data)
             else:
                 assert ValueError
     except (AssertionError, ValueError, IndexError, RuntimeError):
-        data = {None: dict(error="Something went wrong during the fit..")}
-    return data
+        data_lst = [{None: dict(error="Something went wrong during the fit..")}]
+    return data_lst
 
 
 def fit_circadianess_fit_per_bee(
@@ -338,7 +339,7 @@ def create_phase_per_date_df(circadianess_df):
 
 def get_overall_velocity_mean(from_dt, to_dt):
     # get alive bees
-    alive_bees = list(bb_behavior.db.get_alive_bees(from_dt, to_dt))[0:1]
+    alive_bees = list(bb_behavior.db.get_alive_bees(from_dt, to_dt))
 
     velocities = pd.DataFrame(columns=["velocity", "datetime"])
     # iterate through all bees
