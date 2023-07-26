@@ -128,7 +128,7 @@ def fit_circadianess_fit_per_bee_phase_variation(
 
         # remove NaNs and infs
         velocities = velocities[~pd.isnull(velocities.velocity)]
-
+        data_lst = []
         for phase in phases:
             # calculate circadianess
             data = collect_fit_data_for_bee_date(
@@ -142,11 +142,12 @@ def fit_circadianess_fit_per_bee_phase_variation(
                 add_velocity_quality_params(data, velocities)
                 # extract from parameters of fit
                 extract_parameters_from_circadian_fit(data)
+                data_lst.append(data)
             else:
                 assert ValueError
     except (AssertionError, ValueError, IndexError, RuntimeError):
-        data = {None: dict(error="Something went wrong during the fit..")}
-    return data
+        data_lst = [{None: dict(error="Something went wrong during the fit..")}]
+    return data_lst
 
 
 def fit_circadianess_fit_per_bee(
