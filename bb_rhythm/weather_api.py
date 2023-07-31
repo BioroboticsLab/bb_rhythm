@@ -5,6 +5,21 @@ from wetterdienst.provider.dwd.observation import (
 from wetterdienst import Settings
 
 
+def get_weather_parameter_df(dt_from, dt_to, parameter, station_name="Berlin-Tempelhof"):
+    settings = Settings(tidy=True, si_units=False, humanize=True)
+    stations = DwdObservationRequest(
+        parameter=[(parameter)],
+        resolution=DwdObservationResolution.MINUTE_10,
+        start_date=dt_from,
+        end_date=dt_to,
+        settings=settings,
+    ).filter_by_name(name=station_name)
+    weather_lst = []
+    for res in stations.values.query():
+        weather_lst.append(res)
+    return weather_lst[0].df
+
+
 def get_air_temperature_frame(dt_from, dt_to, station_name="Berlin-Tempelhof"):
     settings = Settings(tidy=True, si_units=False, humanize=True)
     stations = DwdObservationRequest(

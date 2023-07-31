@@ -175,20 +175,12 @@ def get_all_interactions_over_time(interaction_generator):
     return clustered_interactions
 
 
-def get_velocity_change_per_bee(bee_id, interaction_start, interaction_end):
-    delta_t = datetime.timedelta(0, 30)
-    dt_before, dt_after = interaction_start - delta_t, interaction_end + delta_t
-
-    if type(bee_id) == np.int64:
-        bee_id = bee_id.item()
-
-    # fetch velocities
-    velocities = bb_behavior.db.trajectory.get_bee_velocities(
-        bee_id, dt_before, dt_after
-    )
-
+def get_velocity_change_per_bee(interaction_start, interaction_end, velocities):
     if velocities is None:
         return None, None
+
+    delta_t = datetime.timedelta(0, 30)
+    dt_before, dt_after = interaction_start - delta_t, interaction_end + delta_t
 
     vel_before = np.mean(
         velocities[
@@ -334,11 +326,17 @@ def get_duration(df):
     ).dt.total_seconds()
 
 
-def concat_duration_time(combined_df, df):
-    combined_df["duration"] = pd.concat([df["duration"], df["duration"]])
-    combined_df["hour"] = pd.concat(
-        [df["interaction_start"].dt.hour, df["interaction_start"].dt.hour]
+def concat_interaction_times(df, combined_df):
+    combined_df["interaction_start"] = pd.concat(
+        [df["interaction_start"], df["interaction_start"]]
     )
+    combined_df["interaction_end"] = pd.concat(
+        [df["interaction_end"], df["interaction_end"]]
+    )
+
+
+def get_hour(df):
+    df["hour"] = df["interaction_start"].dt.hour
 
 
 def concat_ages(combined_df, df):
@@ -364,6 +362,15 @@ def concat_amplitude(combined_df, df):
     )
 
 
+def concat_bee_id(combined_df, df):
+    combined_df["amplitude_focal"] = pd.concat(
+        [df["bee_id0"], df["bee_id1"]]
+    )
+    combined_df["bee_id_non_focal"] = pd.concat(
+        [df["bee_id1"], df["bee_id0"]]
+    )
+
+
 def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
     combined_df = pd.DataFrame(
         columns=[
@@ -378,14 +385,19 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "hour",
             "amplitude_focal",
             "amplitude_non_focal",
+            "bee_id_focal",
+            "bee_id_non_focal",
+            "interaction_start",
+            "interaction_end"
         ]
     )
     concat_circ(combined_df, df)
     concat_amplitude(combined_df, df)
     concat_ages(combined_df, df)
     concat_velocity_changes(combined_df, df)
-    concat_duration_time(combined_df, df)
     concat_position(combined_df, df, trans=trans)
+    concat_bee_id(combined_df, df)
+    concat_interaction_times(combined_df, df)
     return combined_df
 
 
@@ -698,7 +710,7 @@ def get_intermediate_time_windows_df(df, dt_from, dt_to):
     intermediate_df = pd.DataFrame(
         columns=["bee_id", "non_interaction_start", "non_interaction_end"]
     )
-    for bee_id, group in df.groupby(["bee_id"]):
+    for bee_id, group in df.groupby(["bee_id_focal"]):
         group.sort_values(by=["interaction_start"], inplace=True)
         non_interaction_start = dt_from
         non_interaction_end = df["interaction_start"].iloc[0]
@@ -846,3 +858,17 @@ def combine_interactions_from_slurm_job(job, slurm_path, circadian_df):
         interactions_df, circadian_df
     )
     return interactions_df_merged
+
+
+def add_velocity_change_to_intermediate_time_windows_df(intermediate_df, velocities):
+    intermediate_df["vel_change_bee"] = len(intermediate_df) * [None]
+    intermediate_df["relative_change_bee"] = len(intermediate_df) * [None]
+    for index, row in intermediate_df:
+        # get velocity changes
+        intermediate_df.iloc[index].vel_change_bee, intermediate_df.iloc[index].relative_change_bee = get_velocity_change_per_bee(
+            bee_id=row['bee_id'],
+            interaction_start=row['non_interaction_start'],
+            interaction_end=row['non_interaction_end'],
+            velocities=velocities
+        )
+    return intermediate_df
