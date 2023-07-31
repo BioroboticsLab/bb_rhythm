@@ -208,13 +208,13 @@ def swap_focal_bee_to_be_low_circadian(df):
         "y_pos_start_focal": [],
         "theta_start_focal": [],
         "vel_change_bee_focal": [],
-        "relative_change_bee_focal": [],
+        "rel_change_bee_focal": [],
         "circadianess_non_focal": [],
         "x_pos_start_non_focal": [],
         "y_pos_start_non_focal": [],
         "theta_start_non_focal": [],
         "vel_change_bee_non_focal": [],
-        "relative_change_bee_non_focal": [],
+        "rel_change_bee_non_focal": [],
     }
     parameters = [
         "circadianess",
@@ -222,7 +222,7 @@ def swap_focal_bee_to_be_low_circadian(df):
         "y_pos_start",
         "theta_start",
         "vel_change_bee",
-        "relative_change_bee",
+        "rel_change_bee",
     ]
     for index, interaction in df.iterrows():
         if interaction["circadianess_focal"] > interaction["circadianess_non_focal"]:
@@ -321,27 +321,27 @@ def get_dist_special_coord(row):
 
 
 def get_duration(df):
-    df["duration"] = (
+    df["duration"] = [row.total_seconds() for row in (
         df["interaction_end"] - df["interaction_start"]
-    ).dt.total_seconds()
-
-
-def concat_interaction_times(df, combined_df):
-    combined_df["interaction_start"] = pd.concat(
-        [df["interaction_start"], df["interaction_start"]]
-    )
-    combined_df["interaction_end"] = pd.concat(
-        [df["interaction_end"], df["interaction_end"]]
-    )
+    )]
 
 
 def get_hour(df):
     df["hour"] = df["interaction_start"].dt.hour
 
 
+def concat_interaction_times(combined_df, df):
+    combined_df["interaction_start"] = pd.concat(
+        [df["interaction_start"], df["interaction_start"]], ignore_index=True
+    )
+    combined_df["interaction_end"] = pd.concat(
+        [df["interaction_end"], df["interaction_end"]], ignore_index=True
+    )
+
+
 def concat_ages(combined_df, df):
-    combined_df["age_focal"] = pd.concat([df["age_0"], df["age_1"]])
-    combined_df["age_non_focal"] = pd.concat([df["age_1"], df["age_0"]])
+    combined_df["age_focal"] = pd.concat([df["age_bee0"], df["age_bee1"]])
+    combined_df["age_non_focal"] = pd.concat([df["age_bee1"], df["age_bee0"]])
 
 
 def concat_circ(combined_df, df):
@@ -363,7 +363,7 @@ def concat_amplitude(combined_df, df):
 
 
 def concat_bee_id(combined_df, df):
-    combined_df["amplitude_focal"] = pd.concat(
+    combined_df["bee_id_focal"] = pd.concat(
         [df["bee_id0"], df["bee_id1"]]
     )
     combined_df["bee_id_non_focal"] = pd.concat(
@@ -379,10 +379,8 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "age_focal",
             "age_non_focal",
             "vel_change_bee_non_focal",
-            "relative_change_bee_focal",
-            "relative_change_bee_non_focal",
-            "duration",
-            "hour",
+            "rel_change_bee_focal",
+            "rel_change_bee_non_focal",
             "amplitude_focal",
             "amplitude_non_focal",
             "bee_id_focal",
@@ -403,16 +401,16 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
 
 def concat_velocity_changes(combined_df, df):
     combined_df["vel_change_bee_focal"] = pd.concat(
-        [df["vel_change_bee_0"], df["vel_change_bee_1"]]
+        [df["vel_change_bee0"], df["vel_change_bee1"]]
     )
     combined_df["vel_change_bee_non_focal"] = pd.concat(
-        [df["vel_change_bee_1"], df["vel_change_bee_0"]]
+        [df["vel_change_bee1"], df["vel_change_bee0"]]
     )
-    combined_df["relative_change_bee_focal"] = pd.concat(
-        [df["relative_change_bee_0"], df["relative_change_bee_1"]]
+    combined_df["rel_change_bee_focal"] = pd.concat(
+        [df["rel_change_bee0"], df["rel_change_bee1"]]
     )
-    combined_df["relative_change_bee_non_focal"] = pd.concat(
-        [df["relative_change_bee_1"], df["relative_change_bee_0"]]
+    combined_df["rel_change_bee_non_focal"] = pd.concat(
+        [df["rel_change_bee1"], df["rel_change_bee0"]]
     )
 
 
@@ -438,22 +436,22 @@ def concat_position(combined_df, df, trans=False):
         )
     else:
         combined_df["x_pos_start_focal"] = pd.concat(
-            [df["bee_id0_x_pos_start"], df["bee_id1_x_pos_start"]]
+            [df["x_pos_start_bee0"], df["x_pos_start_bee1"]]
         )
         combined_df["x_pos_start_non_focal"] = pd.concat(
-            [df["bee_id1_x_pos_start"], df["bee_id0_x_pos_start"]]
+            [df["x_pos_start_bee1"], df["x_pos_start_bee0"]]
         )
         combined_df["y_pos_start_focal"] = pd.concat(
-            [df["bee_id0_y_pos_start"], df["bee_id1_y_pos_start"]]
+            [df["y_pos_start_bee0"], df["y_pos_start_bee0"]]
         )
         combined_df["y_pos_start_non_focal"] = pd.concat(
-            [df["bee_id1_y_pos_start"], df["bee_id0_y_pos_start"]]
+            [df["y_pos_start_bee1"], df["y_pos_start_bee0"]]
         )
         combined_df["theta_start_focal"] = pd.concat(
-            [df["bee_id0_theta_start"], df["bee_id1_theta_start"]]
+            [df["theta_start_bee0"], df["theta_start_bee1"]]
         )
         combined_df["theta_start_non_focal"] = pd.concat(
-            [df["bee_id1_theta_start"], df["bee_id0_theta_start"]]
+            [df["theta_start_bee1"], df["theta_start_bee0"]]
         )
 
 
@@ -508,8 +506,8 @@ def get_interactions(dt_from=None, dt_to=None, db_connection=None):
                 # get velocity changes
                 # "focal" bee
                 (
-                    interaction_dict["vel_change_bee_0"],
-                    interaction_dict["relative_change_bee_0"],
+                    interaction_dict["vel_change_bee0"],
+                    interaction_dict["rel_change_bee0"],
                 ) = get_velocity_change_per_bee(
                     bee_id=interaction_dict["bee_id0"],
                     interaction_start=interaction_dict["interaction_start"],
@@ -517,8 +515,8 @@ def get_interactions(dt_from=None, dt_to=None, db_connection=None):
                 )
                 # "non-focal" bee
                 (
-                    interaction_dict["vel_change_bee_1"],
-                    interaction_dict["relative_change_bee_1"],
+                    interaction_dict["vel_change_bee1"],
+                    interaction_dict["rel_change_bee1"],
                 ) = get_velocity_change_per_bee(
                     bee_id=interaction_dict["bee_id1"],
                     interaction_start=interaction_dict["interaction_start"],
@@ -805,7 +803,7 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
     interactions_df_merged = pd.merge(
         interactions_df, circadian_df, how="left", on=["date", "bee_id"]
     )
-    interactions_df_merged["age_0"] = interactions_df_merged["age"]
+    interactions_df_merged["age_bee0"] = interactions_df_merged["age"]
     interactions_df_merged["circadianess_bee0"] = interactions_df_merged["r_squared"]
     interactions_df_merged["amplitude_bee0"] = interactions_df_merged["amplitude"]
     interactions_df_merged.drop(
@@ -815,7 +813,7 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
     interactions_df_merged = pd.merge(
         interactions_df_merged, circadian_df, how="left", on=["date", "bee_id"]
     )
-    interactions_df_merged["age_1"] = interactions_df_merged["age"]
+    interactions_df_merged["age_bee1"] = interactions_df_merged["age"]
     interactions_df_merged["circadianess_bee1"] = interactions_df_merged["r_squared"]
     interactions_df_merged["amplitude_bee1"] = interactions_df_merged["amplitude"]
     interactions_df_merged.drop(
@@ -823,22 +821,17 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
     )
     return interactions_df_merged
 
-
-def get_hour(interaction_df):
-    interaction_df["hour"] = interaction_df["interaction_start"].dt.hour
-
-
 def get_start_velocity(df):
-    df["velocity_start_bee_0"] = (
-        df["vel_change_bee_0"] * 100 / df["relative_change_bee_0"]
+    df["velocity_start_bee_focal"] = (
+        df["vel_change_bee_focal"] * 100 / df["rel_change_bee_focal"]
     )
-    df["velocity_start_bee_1"] = (
-        df["vel_change_bee_1"] * 100 / df["relative_change_bee_1"]
+    df["velocity_start_bee_non_focal"] = (
+        df["vel_change_bee_non_focal"] * 100 / df["rel_change_bee_non_focal"]
     )
 
 
 def filter_overlap(interaction_df):
-    interaction_df = interaction_df[interaction_df["overlap"].values]
+    interaction_df = interaction_df[interaction_df["overlapping"].values]
     return interaction_df
 
 
@@ -862,10 +855,10 @@ def combine_interactions_from_slurm_job(job, slurm_path, circadian_df):
 
 def add_velocity_change_to_intermediate_time_windows_df(intermediate_df, velocities):
     intermediate_df["vel_change_bee"] = len(intermediate_df) * [None]
-    intermediate_df["relative_change_bee"] = len(intermediate_df) * [None]
+    intermediate_df["rel_change_bee"] = len(intermediate_df) * [None]
     for index, row in intermediate_df:
         # get velocity changes
-        intermediate_df.iloc[index].vel_change_bee, intermediate_df.iloc[index].relative_change_bee = get_velocity_change_per_bee(
+        intermediate_df.iloc[index].vel_change_bee, intermediate_df.iloc[index].rel_change_bee = get_velocity_change_per_bee(
             bee_id=row['bee_id'],
             interaction_start=row['non_interaction_start'],
             interaction_end=row['non_interaction_end'],
