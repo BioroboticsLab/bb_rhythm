@@ -757,9 +757,9 @@ def in_between(
 ):
     # assuming interaction_start_0 <= interaction_start_1
     return (
-        interaction_start_0
-        <= interaction_start_1 & interaction_end_0
-        >= interaction_end_1
+        (interaction_start_0
+        <= interaction_start_1)  & (interaction_end_0
+        >= interaction_end_1)
     )
 
 
@@ -768,9 +768,9 @@ def overlap_after(
 ):
     # assuming interaction_start_0 <= interaction_start_1
     return (
-        interaction_start_0
-        <= interaction_start_1 & interaction_end_0
-        < interaction_end_1
+        (interaction_start_0
+        <= interaction_start_1) & (interaction_end_0
+        < interaction_end_1)
     )
 
 
@@ -853,7 +853,7 @@ def combine_interactions_from_slurm_job(job, slurm_path, circadian_df):
 def add_velocity_change_to_intermediate_time_windows_df(intermediate_df, velocities):
     intermediate_df["vel_change_bee"] = len(intermediate_df) * [None]
     intermediate_df["rel_change_bee"] = len(intermediate_df) * [None]
-    for index, row in intermediate_df:
+    for index, row in intermediate_df.iterrows():
         # get velocity changes
         (
             intermediate_df.iloc[index].vel_change_bee,
@@ -873,7 +873,7 @@ def add_circadian_meta_data_to_intermediate_time_windows_df(
     meta_params = ["age", "amplitude", "circadianess"]
     for param in meta_params:
         intermediate_df[param] = len(intermediate_df) * [None]
-    for index, row in intermediate_df:
+    for index, row in intermediate_df.iterrows():
         for param in meta_params:
             try:
                 intermediate_df.iloc[index][param] = interaction_df[
