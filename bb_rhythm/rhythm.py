@@ -280,22 +280,7 @@ def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time_reference=None)
         time_shift = 0
     if time_reference:
         time_shift = circadianess_df["time_reference"]
-    circadianess_df["phase_plt"] = (
-        time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
-    )
-    circadianess_df["phase_plt"] = circadianess_df["phase_plt"] + np.where(
-        circadianess_df["phase_plt"] < 0, 24, 0
-    )
-    if time_reference:
-        circadianess_df = circadianess_df[
-            circadianess_df["phase_plt"] >= (circadianess_df["time_reference"] - 12)
-        ]
-        circadianess_df = circadianess_df[
-            circadianess_df["phase_plt"] < (circadianess_df["time_reference"] + 12)
-        ]
-    else:
-        circadianess_df = circadianess_df[circadianess_df["phase_plt"] >= 0]
-        circadianess_df = circadianess_df[circadianess_df["phase_plt"] < 24]
+    circadianess_df["phase_plt"] = (time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift)  % 24
     return circadianess_df
 
 

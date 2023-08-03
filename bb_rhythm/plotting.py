@@ -698,7 +698,7 @@ def plot_bins_velocity_focal_non_focal(
     plot_pivot = (
         combined_df[[group_type1, group_type2, change_type]]
         .groupby([group_type1, group_type2])
-        .agg_func()
+        .apply(agg_func)
         .unstack(level=-1)
     )
 
@@ -988,5 +988,91 @@ def plot_phase_per_date(phase_per_date_df, plot_path=None):
     sns.lineplot(
         data=phase_per_date_df, x="date", y="phase_std", hue="age_group", ax=ax[1]
     )
+    if plot_path:
+        plt.savefig(plot_path)
+
+
+def plot_circadian_fit(df_row, velocities=None, plot_path=None, linear_model=False, constant_model=False, fixed_minimum_model=False):
+    df_row = dict(df_row)
+    if velocities is None:
+        with bb_behavior.db.base.get_database_connection(application_name="find_interactions_in_frame") as db:
+                cursor = db.cursor()
+                delta = datetime.timedelta(days=1, hours=12)
+                # fetch velocities
+                velocities = bb_behavior.db.trajectory.get_bee_velocities(df_row["bee_id"],
+                                                                          df_row["date"] - delta,
+                                                                          df_row["date"] + delta,
+                                                                          confidence_threshold=0.1,
+                                                                          max_mm_per_second=15.0,
+                                                                          cursor=cursor
+                                                                          )
+    velocities_resampled = velocities.copy()
+    velocities_resampled.set_index("datetime", inplace=True)
+
+    if velocities_resampled.shape[0] > 10000:
+        velocities_resampled = velocities_resampled.resample("2min").mean()
+
+    ts_resampled = np.array([t.total_seconds() for t in velocities_resampled.index - df_row["date"]])
+
+    angular_frequency = df_row["angular_frequency"]
+    amplitude, phase, offset = df_row["parameters"]
+
+    base_activity = max(0, offset - amplitude)
+    max_activity = offset + amplitude
+    fraction_circadian = 2.0 * ((max_activity / (base_activity + max_activity)) - 0.5)
+
+    fig, ax = plt.subplots(figsize=(20, 5))
+
+    ax.axvline(velocities_resampled.index[0] + datetime.timedelta(days=1, hours=phase), color="g", linestyle=":")
+    ax.axhline(base_activity, color="k", linestyle="--")
+    ax.axhline(max_activity, color="k", linestyle="--")
+
+    y = np.cos(ts_resampled * angular_frequency - phase) * amplitude + offset
+    velocities_resampled["circadian_model"] = y
+
+    velocities_resampled.plot(y="velocity", ax=ax, color="k", alpha=0.3)
+    velocities_resampled.plot(y="circadian_model", ax=ax, color="g", alpha=1.0)
+
+    title  = "bee_id: {}, age: {}, date: {}" \
+             "R^2 (vs constant): {}, R^2 (vs linear): {}\n" \
+                "circadian: {}, amplitude: {}, phase: {}h".format(
+        df_row["bee_id"],
+        df_row["age"],
+        df_row["date"],
+        df_row["r_squared"],
+        df_row["r_squared_linear"],
+        fraction_circadian,
+        2.0 * amplitude,
+        phase,
+    )
+
+    if linear_model:
+        b0, b1 = df_row["linear_parameters"]
+        y_linear = (ts_resampled * b1) + b0
+        velocities_resampled["linear_model"] = y_linear
+        velocities_resampled.plot(y="linear_model", ax=ax, color="r", linestyle="--", alpha=1.0)
+
+    if constant_model:
+        mean = df_row["constant_parameters"][0]
+        velocities_resampled["constant_model"] = mean
+        velocities_resampled.plot(y="constant_model", ax=ax, color="r", linestyle=":", alpha=1.0)
+
+    if fixed_minimum_model:
+        fixed_minimum_r_squared = np.nan
+        fixed_amplitude, fixed_phase = np.nan, np.nan
+        if "fixed_minimum_model" in df_row:
+            fixed_minimum_r_squared = df_row["fixed_minimum_model"]["r_squared"]
+            fixed_amplitude, fixed_phase = df_row["fixed_minimum_model"]["parameters"]
+            y = np.cos(ts_resampled * angular_frequency - fixed_phase) * fixed_amplitude + fixed_amplitude
+            velocities_resampled["circadian_model_fixed_min"] = y
+            velocities_resampled.plot(y="circadian_model_fixed_min", ax=ax, color="b", linestyle=":", alpha=1.0)
+        title  = title + "\nR^2 of zero-min model (vs constant): {}, amplitude: {}, phase: {}h" .format(
+        fixed_minimum_r_squared,
+        2.0 * fixed_amplitude,
+        fixed_phase)
+
+    p90 = np.percentile(velocities.velocity.values, 95)
+    plt.ylim(0, p90)
+    plt.title(title)
     if plot_path:
         plt.savefig(plot_path)
