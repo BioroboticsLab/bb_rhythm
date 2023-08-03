@@ -165,7 +165,14 @@ def create_age_map_bin(max_age, n_age_bins, step_size):
 
 
 def calculate_regression(
-    df, x_column, y_column, type="linear", printing=True, degree=3, epsilon=1.35, alpha=0.0001
+    df,
+    x_column,
+    y_column,
+    type="linear",
+    printing=True,
+    degree=3,
+    epsilon=1.35,
+    alpha=0.0001,
 ):
     # define predictor and response variables
     y = df[y_column]

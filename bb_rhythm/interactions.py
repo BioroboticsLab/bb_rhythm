@@ -867,14 +867,22 @@ def add_velocity_change_to_intermediate_time_windows_df(intermediate_df, velocit
     return intermediate_df
 
 
-def add_circadian_meta_data_to_intermediate_time_windows_df(intermediate_df, interaction_df):
-    meta_params  = ["age", "amplitude", "circadianess"]
+def add_circadian_meta_data_to_intermediate_time_windows_df(
+    intermediate_df, interaction_df
+):
+    meta_params = ["age", "amplitude", "circadianess"]
     for param in meta_params:
         intermediate_df[param] = len(intermediate_df) * [None]
     for index, row in intermediate_df:
         for param in meta_params:
             try:
-                intermediate_df.iloc[index][param] = interaction_df[(row["bee_id"].dt.date == interaction_df["bee_id_focal"].dt.date) & (row["interaction_start"].dt.date == interaction_df["interaction_start"].dt.date)][param + "_focal"].sample(n=1)
+                intermediate_df.iloc[index][param] = interaction_df[
+                    (row["bee_id"].dt.date == interaction_df["bee_id_focal"].dt.date)
+                    & (
+                        row["interaction_start"].dt.date
+                        == interaction_df["interaction_start"].dt.date
+                    )
+                ][param + "_focal"].sample(n=1)
             except KeyError:
                 continue
     return intermediate_df
@@ -891,9 +899,7 @@ def create_intermediate_df_per_bee(bee_id, dt_from, dt_to, interaction_df, veloc
             "age_focal",
         ]
     ]
-    intermediate_df = get_intermediate_time_windows_df(
-        interaction_df, dt_from, dt_to
-    )
+    intermediate_df = get_intermediate_time_windows_df(interaction_df, dt_from, dt_to)
     intermediate_df = add_velocity_change_to_intermediate_time_windows_df(
         intermediate_df, velocities
     )
