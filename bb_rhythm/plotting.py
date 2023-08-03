@@ -241,14 +241,13 @@ def plot_velocity_per_age_group(
     # add human-readable age bins to df
     sorted_by = "age"
     if age_map:
-        sorted_by = "age_bins"
-        utils.add_age_bins(time_age_velocity_df, age_map_step_size, age_bins)
-        time_age_velocity_df = time_age_velocity_df[
-            time_age_velocity_df["age_bins"] != "Nan"
-        ]
+        sorted_by = "Age [days]"
+        binning = utils.Binning(bin_name=sorted_by, bin_parameter="age")
+        binning.set_bins(age_bins)
+        time_age_velocity_df = binning.add_bins(time_age_velocity_df, step_size=age_map_step_size)
 
     # create color palette
-    palette = create_age_color_palette(age_bins, sorted_by, time_age_velocity_df)
+    palette = create_age_color_palette(binning.bin_map, sorted_by, time_age_velocity_df)
 
     # smooth lines per group, but still plot transparently 95% confidence interval for non-smoothed lines
     if smoothing:
@@ -646,13 +645,31 @@ def get_bin_distributions_as_histmap(
     group_type1="bins_non_focal",
     group_type2="bins_focal",
     bin_func=True,
-    bin_metric="equal_bin_size",
+    bin_parameter="circadianess",
     n_bins=6,
+        step_size=None,
+        bin_max_n = None,
+        remove_none=True,
     change_type1="vel_change_bee_focal",
     printing=True,
 ):
     if bin_func:
-        utils.add_circadian_bins(df, bin_metric, n_bins=n_bins)
+        binning = utils.Binning(bin_name=group_type1,bin_parameter=bin_parameter)
+        df =  binning.add_bins_to_df(
+            df,
+            n_bins=n_bins,
+            step_size=step_size,
+            bin_max_n=bin_max_n,
+            remove_none=remove_none
+        )
+        binning = utils.Binning(bin_name=group_type2,bin_parameter=bin_parameter)
+        df = binning.add_bins_to_df(
+            df,
+            n_bins = n_bins,
+            step_size = step_size,
+            bin_max_n = bin_max_n,
+            remove_none = remove_none
+        )
 
     # print info per bin
     if printing:
@@ -683,18 +700,38 @@ def plot_bins_velocity_focal_non_focal(
     plot_path,
     bin_metric="equal_bin_size",
     n_bins=6,
+step_size=None,
+        bin_max_n = None,
+        remove_none=True,
     change_type="vel_change_bee_focal",
     agg_func=np.median,
     fig_title_agg_func="Median",
     fig_label_bin_metric="Circadian power",
 ):
-    # add bins
-    if bin_metric:
-        utils.add_circadian_bins(combined_df, bin_metric, n_bins=n_bins)
-
     # create pivot for plotting
     group_type1 = "bins_non_focal"
     group_type2 = "bins_focal"
+
+    # add bins
+    if bin_metric:
+        binning = utils.Binning(bin_name=group_type1, bin_parameter=bin_parameter)
+        df = binning.add_bins_to_df(
+            df,
+            n_bins=n_bins,
+            step_size=step_size,
+            bin_max_n=bin_max_n,
+            remove_none=remove_none
+        )
+        binning = utils.Binning(bin_name=group_type2, bin_parameter=bin_parameter)
+        df = binning.add_bins_to_df(
+            df,
+            n_bins=n_bins,
+            step_size=step_size,
+            bin_max_n=bin_max_n,
+            remove_none=remove_none
+        )
+
+    # create pivot for plotting
     plot_pivot = (
         combined_df[[group_type1, group_type2, change_type]]
         .groupby([group_type1, group_type2])
@@ -822,7 +859,7 @@ def apply_three_group_age_map_for_plotting_phase(circadianess_df):
         x=circadianess_df["age"], bins=[-1, 0, 10, 25, max_age]
     )
 
-    age_dict = {
+    age_map = {
         "(0.0, 10.0]": "Age < 10 days",
         "(10.0, 25.0]": "Age >= 10, < 25 days",
         ("(25.0, %s]" % str(float(max_age))): "Age >= 25 days",
