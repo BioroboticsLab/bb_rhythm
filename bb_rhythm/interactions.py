@@ -321,9 +321,9 @@ def get_dist_special_coord(row):
 
 
 def get_duration(df):
-    df["duration"] = [row.total_seconds() for row in (
-        df["interaction_end"] - df["interaction_start"]
-    )]
+    df["duration"] = [
+        row.total_seconds() for row in (df["interaction_end"] - df["interaction_start"])
+    ]
 
 
 def get_hour(df):
@@ -363,12 +363,8 @@ def concat_amplitude(combined_df, df):
 
 
 def concat_bee_id(combined_df, df):
-    combined_df["bee_id_focal"] = pd.concat(
-        [df["bee_id0"], df["bee_id1"]]
-    )
-    combined_df["bee_id_non_focal"] = pd.concat(
-        [df["bee_id1"], df["bee_id0"]]
-    )
+    combined_df["bee_id_focal"] = pd.concat([df["bee_id0"], df["bee_id1"]])
+    combined_df["bee_id_non_focal"] = pd.concat([df["bee_id1"], df["bee_id0"]])
 
 
 def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
@@ -386,7 +382,7 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "bee_id_focal",
             "bee_id_non_focal",
             "interaction_start",
-            "interaction_end"
+            "interaction_end",
         ]
     )
     concat_circ(combined_df, df)
@@ -821,6 +817,7 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
     )
     return interactions_df_merged
 
+
 def get_start_velocity(df):
     df["velocity_start_bee_focal"] = (
         df["vel_change_bee_focal"] * 100 / df["rel_change_bee_focal"]
@@ -858,10 +855,13 @@ def add_velocity_change_to_intermediate_time_windows_df(intermediate_df, velocit
     intermediate_df["rel_change_bee"] = len(intermediate_df) * [None]
     for index, row in intermediate_df:
         # get velocity changes
-        intermediate_df.iloc[index].vel_change_bee, intermediate_df.iloc[index].rel_change_bee = get_velocity_change_per_bee(
-            bee_id=row['bee_id'],
-            interaction_start=row['non_interaction_start'],
-            interaction_end=row['non_interaction_end'],
-            velocities=velocities
+        (
+            intermediate_df.iloc[index].vel_change_bee,
+            intermediate_df.iloc[index].rel_change_bee,
+        ) = get_velocity_change_per_bee(
+            bee_id=row["bee_id"],
+            interaction_start=row["non_interaction_start"],
+            interaction_end=row["non_interaction_end"],
+            velocities=velocities,
         )
     return intermediate_df

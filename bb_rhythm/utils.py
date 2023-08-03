@@ -4,6 +4,7 @@ from sklearn.preprocessing import PolynomialFeatures
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import scipy
+from sklearn.linear_model import HuberRegressor
 
 
 def add_age_bins(velocity_df, step_size=5, age_bins=None):
@@ -60,9 +61,7 @@ def add_equal_n_circ_bins(n_bins, vel_change_df):
 
 
 def add_amplitude_bins(n_bins, vel_change_df):
-    vel_change_df["bins_focal"] = pd.qcut(
-        x=vel_change_df["amplitude_focal"], q=n_bins
-    )
+    vel_change_df["bins_focal"] = pd.qcut(x=vel_change_df["amplitude_focal"], q=n_bins)
     vel_change_df["bins_non_focal"] = pd.qcut(
         x=vel_change_df["amplitude_non_focal"], q=n_bins
     )
@@ -122,9 +121,7 @@ def new_add_equal_n_circ_bins(n_bins, vel_change_df):
 
 def add_equal_n_start_vel_bins(n_bins, vel_change_df):
     vel_change_df.sort_values("vel_start_focal", inplace=True)
-    vel_change_df["bins_focal"] = pd.qcut(
-        x=vel_change_df["vel_start_focal"], q=n_bins
-    )
+    vel_change_df["bins_focal"] = pd.qcut(x=vel_change_df["vel_start_focal"], q=n_bins)
     vel_change_df.sort_values("vel_start_non_focal", inplace=True)
     vel_change_df["bins_non_focal"] = pd.qcut(
         x=vel_change_df["vel_start_non_focal"], q=n_bins
@@ -168,7 +165,7 @@ def create_age_map_bin(max_age, n_age_bins, step_size):
 
 
 def calculate_regression(
-    df, x_column, y_column, type="linear", printing=True, degree=3
+    df, x_column, y_column, type="linear", printing=True, degree=3, epsilon=1.35, alpha=0.0001
 ):
     # define predictor and response variables
     y = df[y_column]
@@ -206,6 +203,9 @@ def calculate_regression(
 
     elif type == "poisson":
         fit = sm.GLM(y, X, family=sm.families.Poisson()).fit()
+
+    elif type == "huber":
+        fit = HuberRegressor(epsilon=epsilon, alpha=alpha).fit(X, y)
 
     else:
         raise NotImplementedError

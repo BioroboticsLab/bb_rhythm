@@ -738,7 +738,9 @@ def prepare_interaction_df_for_plotting(interaction_df, relative_change_clean=Fa
         "circadianess_non_focal",
     ]
     if relative_change_clean:
-        to_be_cleaned_columns.extend(["rel_change_bee_focal", "rel_change_bee_non_focal"])
+        to_be_cleaned_columns.extend(
+            ["rel_change_bee_focal", "rel_change_bee_non_focal"]
+        )
     interaction_df = interactions.clean_interaction_df(
         interaction_df, to_be_cleaned_columns
     )

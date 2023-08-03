@@ -5,7 +5,9 @@ from wetterdienst.provider.dwd.observation import (
 from wetterdienst import Settings
 
 
-def get_weather_parameter_df(dt_from, dt_to, parameter, station_name="Berlin-Tempelhof"):
+def get_weather_parameter_df(
+    dt_from, dt_to, parameter, station_name="Berlin-Tempelhof"
+):
     settings = Settings(tidy=True, si_units=False, humanize=True)
     stations = DwdObservationRequest(
         parameter=[(parameter)],

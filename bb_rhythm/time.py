@@ -66,4 +66,6 @@ def phase_to_utc_time(phase_df, fit_type="cosine"):
         phase = phase_df["phase_plt"] - 12
     else:
         phase = phase_df["phase_plt"]
-    phase_df["phase_utc"] = (phase_df.date + (np.array([datetime.timedelta(hours=p) for p in phase])))
+    phase_df["phase_utc"] = phase_df.date + (
+        np.array([datetime.timedelta(hours=p) for p in phase])
+    )
