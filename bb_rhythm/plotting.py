@@ -769,8 +769,8 @@ def prepare_interaction_df_for_plotting(interaction_df, relative_change_clean=Fa
 
     # filter Nans and infs
     to_be_cleaned_columns = [
-        "amplitude_focal",
-        "amplitude_non_focal",
+        #"amplitude_focal",
+        #"amplitude_non_focal",
         "vel_change_bee_focal",
         "vel_change_bee_non_focal",
         "circadianess_focal",

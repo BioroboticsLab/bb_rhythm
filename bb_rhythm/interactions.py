@@ -195,8 +195,14 @@ def get_velocity_change_per_bee(interaction_start, interaction_end, velocities):
         ]["velocity"]
     )
 
+    # absolute velocity change
     vel_change = vel_after - vel_before
-    percent_change = (vel_change / vel_before) * 100
+
+    # relative velocity change
+    if (vel_before == 0) or np.isinf(vel_before) or np.isnan(vel_before):
+        percent_change = np.NaN
+    else:
+        percent_change = (vel_change / vel_before) * 100
 
     return vel_change, percent_change
 
@@ -377,8 +383,8 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "vel_change_bee_non_focal",
             "rel_change_bee_focal",
             "rel_change_bee_non_focal",
-            "amplitude_focal",
-            "amplitude_non_focal",
+           # "amplitude_focal",
+           # "amplitude_non_focal",
             "bee_id_focal",
             "bee_id_non_focal",
             "interaction_start",
@@ -386,7 +392,7 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
         ]
     )
     concat_circ(combined_df, df)
-    concat_amplitude(combined_df, df)
+    # concat_amplitude(combined_df, df)
     concat_ages(combined_df, df)
     concat_velocity_changes(combined_df, df)
     concat_position(combined_df, df, trans=trans)
@@ -643,38 +649,38 @@ def extract_parameters_from_random_sampled_interactions(
     }
 
 
-def get_velocity_change_per_bee(
-    bee_id, interaction_start, interaction_end, velocities_path=None
-):
-    delta_t = datetime.timedelta(0, 30)
-    dt_before, dt_after = interaction_start - delta_t, interaction_end + delta_t
-
-    velocities = fetch_velocities_from_remote_or_db(
-        bee_id, dt_after, dt_before, velocities_path
-    )
-
-    if velocities is None:
-        return None, None
-
-    vel_before = np.mean(
-        velocities[
-            (velocities["datetime"] >= dt_before)
-            & (velocities["datetime"] < interaction_start)
-        ]["velocity"]
-    )
-    vel_after = np.mean(
-        velocities[
-            (velocities["datetime"] > interaction_end)
-            & (velocities["datetime"] <= dt_after)
-        ]["velocity"]
-    )
-    del velocities
-    vel_change = vel_after - vel_before
-    if (vel_before == 0) or np.isinf(vel_before) or np.isnan(vel_before):
-        percent_change = np.NaN
-    else:
-        percent_change = (vel_change / vel_before) * 100
-    return vel_change, percent_change
+# def get_velocity_change_per_bee(
+#     bee_id, interaction_start, interaction_end, velocities_path=None
+# ):
+#     delta_t = datetime.timedelta(0, 30)
+#     dt_before, dt_after = interaction_start - delta_t, interaction_end + delta_t
+#
+#     velocities = fetch_velocities_from_remote_or_db(
+#         bee_id, dt_after, dt_before, velocities_path
+#     )
+#
+#     if velocities is None:
+#         return None, None
+#
+#     vel_before = np.mean(
+#         velocities[
+#             (velocities["datetime"] >= dt_before)
+#             & (velocities["datetime"] < interaction_start)
+#         ]["velocity"]
+#     )
+#     vel_after = np.mean(
+#         velocities[
+#             (velocities["datetime"] > interaction_end)
+#             & (velocities["datetime"] <= dt_after)
+#         ]["velocity"]
+#     )
+#     del velocities
+#     vel_change = vel_after - vel_before
+#     if (vel_before == 0) or np.isinf(vel_before) or np.isnan(vel_before):
+#         percent_change = np.NaN
+#     else:
+#         percent_change = (vel_change / vel_before) * 100
+#     return vel_change, percent_change
 
 
 def fetch_velocities_from_remote_or_db(bee_id, dt_after, dt_before, velocites_path):
@@ -710,12 +716,10 @@ def get_intermediate_time_windows_df(df, dt_from, dt_to):
         non_interaction_end = group["interaction_start"].iloc[0]
         if non_interaction_start < non_interaction_end:
             intermediate_df = pd.concat(
-                [
-                    intermediate_df,
-                    create_row_non_interaction_df(
-                        bee_id, non_interaction_start, non_interaction_end
-                    ),
-                ],
+                [intermediate_df, create_row_non_interaction_df(
+                    bee_id, non_interaction_start, non_interaction_end
+                )
+                 ],
                 ignore_index=True,
             )
         # for bee_id subframe
@@ -742,13 +746,10 @@ def get_intermediate_time_windows_df(df, dt_from, dt_to):
                 current_interaction_end,
                 row["interaction_end"],
             ):
-                intermediate_df = pd.concat(
-                    [
-                        intermediate_df,
-                        create_row_non_interaction_df(
-                            bee_id, current_interaction_end, row["interaction_start"]
-                        ),
-                    ],
+                intermediate_df = pd.concat( [intermediate_df,
+                    create_row_non_interaction_df(
+                        bee_id, current_interaction_end, row["interaction_start"]
+                    )],
                     ignore_index=True,
                 )
                 current_interaction_start = row["interaction_start"]
@@ -758,12 +759,10 @@ def get_intermediate_time_windows_df(df, dt_from, dt_to):
                 break
         if current_interaction_end <= dt_to:
             intermediate_df = pd.concat(
-                [
-                    intermediate_df,
-                    create_row_non_interaction_df(
-                        bee_id, current_interaction_end, dt_to
-                    ),
-                ],
+                [intermediate_df, create_row_non_interaction_df(
+                    bee_id, current_interaction_end, dt_to
+                )
+                 ],
                 ignore_index=True,
             )
     return intermediate_df
@@ -773,8 +772,10 @@ def in_between(
     interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1
 ):
     # assuming interaction_start_0 <= interaction_start_1
-    return (interaction_start_0 <= interaction_start_1) & (
-        interaction_end_0 >= interaction_end_1
+    return (
+        (interaction_start_0
+        <= interaction_start_1)  & (interaction_end_0
+        >= interaction_end_1)
     )
 
 
@@ -782,8 +783,13 @@ def overlap_after(
     interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1
 ):
     # assuming interaction_start_0 <= interaction_start_1
-    return (interaction_start_0 <= interaction_start_1) & (
-        interaction_end_0 < interaction_end_1
+    return (
+        (interaction_start_0
+        <= interaction_start_1) &
+        (interaction_start_1
+         < interaction_end_0) &
+        (interaction_end_0
+        < interaction_end_1)
     )
 
 
@@ -795,13 +801,11 @@ def after(
 
 
 def create_row_non_interaction_df(bee_id, non_interaction_start, non_interaction_end):
-    return pd.DataFrame(
-        {
-            "bee_id": [bee_id],
-            "non_interaction_start": [non_interaction_start],
-            "non_interaction_end": [non_interaction_end],
-        }
-    )
+    return pd.DataFrame({
+        "bee_id": [bee_id],
+        "non_interaction_start": [non_interaction_start],
+        "non_interaction_end": [non_interaction_end],
+    })
 
 
 def add_circadianess_to_interaction_df(interactions_df, circadian_df):
@@ -866,19 +870,17 @@ def combine_interactions_from_slurm_job(job, slurm_path, circadian_df):
 
 
 def add_velocity_change_to_intermediate_time_windows_df(intermediate_df, velocities):
-    intermediate_df["vel_change_bee"] = len(intermediate_df) * [None]
-    intermediate_df["rel_change_bee"] = len(intermediate_df) * [None]
+    vel_change_lst = len(intermediate_df) * [None]
+    rel_change_lst = len(intermediate_df) * [None]
     for index, row in intermediate_df.iterrows():
         # get velocity changes
-        (
-            intermediate_df.iloc[index].vel_change_bee,
-            intermediate_df.iloc[index].rel_change_bee,
-        ) = get_velocity_change_per_bee(
-            bee_id=row["bee_id"],
+        vel_change_lst[index], rel_change_lst[index] = get_velocity_change_per_bee(
             interaction_start=row["non_interaction_start"],
             interaction_end=row["non_interaction_end"],
             velocities=velocities,
         )
+    intermediate_df["vel_change_bee"] = vel_change_lst
+    intermediate_df["rel_change_bee"] = rel_change_lst
     return intermediate_df
 
 
@@ -886,13 +888,14 @@ def add_circadian_meta_data_to_intermediate_time_windows_df(
     intermediate_df, interaction_df
 ):
     meta_params = ["age", "amplitude", "circadianess"]
+    meta_params_dict = {}
     for param in meta_params:
-        intermediate_df[param] = len(intermediate_df) * [None]
+        meta_params_dict[param] = len(intermediate_df) * [None]
     for index, row in intermediate_df.iterrows():
         for param in meta_params:
             try:
-                intermediate_df.iloc[index][param] = interaction_df[
-                    (row["bee_id"].dt.date == interaction_df["bee_id_focal"].dt.date)
+                meta_params_dict[param][index] = interaction_df[
+                    (row["bee_id"] == interaction_df["bee_id_focal"])
                     & (
                         row["interaction_start"].dt.date
                         == interaction_df["interaction_start"].dt.date
@@ -900,20 +903,12 @@ def add_circadian_meta_data_to_intermediate_time_windows_df(
                 ][param + "_focal"].sample(n=1)
             except KeyError:
                 continue
+    for param in meta_params:
+        intermediate_df[param] = meta_params_dict[param]
     return intermediate_df
 
 
-def create_intermediate_df_per_bee(bee_id, dt_from, dt_to, interaction_df, velocities):
-    interaction_df = interaction_df[interaction_df.bee_id_focal == bee_id][
-        [
-            "bee_id_focal",
-            "interaction_start",
-            "interaction_end",
-            "circadianess_focal",
-            "amplitude_focal",
-            "age_focal",
-        ]
-    ]
+def create_intermediate_df_per_bee(dt_from, dt_to, interaction_df, velocities):
     intermediate_df = get_intermediate_time_windows_df(interaction_df, dt_from, dt_to)
     intermediate_df = add_velocity_change_to_intermediate_time_windows_df(
         intermediate_df, velocities
