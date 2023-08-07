@@ -8,10 +8,10 @@ class Binning:
         self.bin_parameter = bin_parameter
         self.bin_n = None
         self.bin_max_n = None
-        self.step_size=None
+        self.step_size = None
         self.bin_map = None
         self.bins = None
-        self.bin_max_value=None
+        self.bin_max_value = None
         self.remove_none = True
 
     def set_bin_n(self, bin_n):
@@ -31,14 +31,17 @@ class Binning:
 
     def set_bins(self, bins):
         self.bins = bins
+
     def set_remove_none(self, remove_none):
-            self.remove_none = remove_none
+        self.remove_none = remove_none
 
     def set_bin_name(self, bin_name):
         self.remove_none = bin_name
+
     def _replace_bin_identifier_by_bin_map_identifier(self, df):
         df[self.bin_name] = [
-            self.bin_map[str(item)] for item in pd.cut(x=df[bin_parameter], bins=self.bins)
+            self.bin_map[str(item)]
+            for item in pd.cut(x=df[bin_parameter], bins=self.bins)
         ]
 
     def _create_bin_map(self):
@@ -63,9 +66,7 @@ class Binning:
                 i_out = i
             self.bins.append(int(self.bin_max_value))
         else:
-            self.bins = pd.qcut(
-            x=df[self.bin_parameter], q=self.bin_n
-        )
+            self.bins = pd.qcut(x=df[self.bin_parameter], q=self.bin_n)
 
     def _create_age_bin_map(self):
         """
@@ -79,7 +80,13 @@ class Binning:
                 ("(%s, %s]" % (str(float(self.bins[i])), str(float(self.bins[i + 1]))))
             ] = ("0%s+" % str(self.bins[i]))[-3:]
         self.bin_map[
-            ("(%s, %s]" % (str(float(self.bins[len(self.bins) - 1])), str(float(self.bin_max_value))))
+            (
+                "(%s, %s]"
+                % (
+                    str(float(self.bins[len(self.bins) - 1])),
+                    str(float(self.bin_max_value)),
+                )
+            )
         ] = ("0%s+" % str(self.bins[len(self.bins) - 1]))[-3:]
         self.bin_map["nan"] = "Nan"
 
@@ -92,11 +99,19 @@ class Binning:
         self.bin_map = {}
         for i in range(len(self.bins) - 1):
             self.bin_map[
-                ("(%s, %s]" % (str(float(self.bins[i].left)), str(float(self.bins[i].right))))
-            ] = ("(%s, %s]" % (str(float(self.bins[i].left.round(0.01))), str(float(self.bins[i].right.round(0.01)))))
+                (
+                    "(%s, %s]"
+                    % (str(float(self.bins[i].left)), str(float(self.bins[i].right)))
+                )
+            ] = "(%s, %s]" % (
+                str(float(self.bins[i].left.round(0.01))),
+                str(float(self.bins[i].right.round(0.01))),
+            )
         self.bin_map["nan"] = "Nan"
 
-    def add_bins_to_df(self, df, step_size=5, n_bins=6, bin_max_n=None, remove_none=True):
+    def add_bins_to_df(
+        self, df, step_size=5, n_bins=6, bin_max_n=None, remove_none=True
+    ):
         self.bin_max_value = df[self.bin_parameter].max()
         if self.bins is None:
             self.set_bin_n(n_bins)

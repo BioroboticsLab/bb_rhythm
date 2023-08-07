@@ -244,7 +244,9 @@ def plot_velocity_per_age_group(
         sorted_by = "Age [days]"
         binning = utils.Binning(bin_name=sorted_by, bin_parameter="age")
         binning.set_bins(age_bins)
-        time_age_velocity_df = binning.add_bins(time_age_velocity_df, step_size=age_map_step_size)
+        time_age_velocity_df = binning.add_bins(
+            time_age_velocity_df, step_size=age_map_step_size
+        )
 
     # create color palette
     palette = create_age_color_palette(binning.bin_map, sorted_by, time_age_velocity_df)
@@ -647,28 +649,28 @@ def get_bin_distributions_as_histmap(
     bin_func=True,
     bin_parameter="circadianess",
     n_bins=6,
-        step_size=None,
-        bin_max_n = None,
-        remove_none=True,
+    step_size=None,
+    bin_max_n=None,
+    remove_none=True,
     change_type1="vel_change_bee_focal",
     printing=True,
 ):
     if bin_func:
-        binning = utils.Binning(bin_name=group_type1,bin_parameter=bin_parameter)
-        df =  binning.add_bins_to_df(
+        binning = utils.Binning(bin_name=group_type1, bin_parameter=bin_parameter)
+        df = binning.add_bins_to_df(
             df,
             n_bins=n_bins,
             step_size=step_size,
             bin_max_n=bin_max_n,
-            remove_none=remove_none
+            remove_none=remove_none,
         )
-        binning = utils.Binning(bin_name=group_type2,bin_parameter=bin_parameter)
+        binning = utils.Binning(bin_name=group_type2, bin_parameter=bin_parameter)
         df = binning.add_bins_to_df(
             df,
-            n_bins = n_bins,
-            step_size = step_size,
-            bin_max_n = bin_max_n,
-            remove_none = remove_none
+            n_bins=n_bins,
+            step_size=step_size,
+            bin_max_n=bin_max_n,
+            remove_none=remove_none,
         )
 
     # print info per bin
@@ -700,9 +702,9 @@ def plot_bins_velocity_focal_non_focal(
     plot_path,
     bin_metric="equal_bin_size",
     n_bins=6,
-step_size=None,
-        bin_max_n = None,
-        remove_none=True,
+    step_size=None,
+    bin_max_n=None,
+    remove_none=True,
     change_type="vel_change_bee_focal",
     agg_func=np.median,
     fig_title_agg_func="Median",
@@ -720,7 +722,7 @@ step_size=None,
             n_bins=n_bins,
             step_size=step_size,
             bin_max_n=bin_max_n,
-            remove_none=remove_none
+            remove_none=remove_none,
         )
         binning = utils.Binning(bin_name=group_type2, bin_parameter=bin_parameter)
         df = binning.add_bins_to_df(
@@ -728,7 +730,7 @@ step_size=None,
             n_bins=n_bins,
             step_size=step_size,
             bin_max_n=bin_max_n,
-            remove_none=remove_none
+            remove_none=remove_none,
         )
 
     # create pivot for plotting
