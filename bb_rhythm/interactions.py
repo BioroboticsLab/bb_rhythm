@@ -383,8 +383,8 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "vel_change_bee_non_focal",
             "rel_change_bee_focal",
             "rel_change_bee_non_focal",
-           # "amplitude_focal",
-           # "amplitude_non_focal",
+            # "amplitude_focal",
+            # "amplitude_non_focal",
             "bee_id_focal",
             "bee_id_non_focal",
             "interaction_start",
@@ -716,10 +716,12 @@ def get_intermediate_time_windows_df(df, dt_from, dt_to):
         non_interaction_end = group["interaction_start"].iloc[0]
         if non_interaction_start < non_interaction_end:
             intermediate_df = pd.concat(
-                [intermediate_df, create_row_non_interaction_df(
-                    bee_id, non_interaction_start, non_interaction_end
-                )
-                 ],
+                [
+                    intermediate_df,
+                    create_row_non_interaction_df(
+                        bee_id, non_interaction_start, non_interaction_end
+                    ),
+                ],
                 ignore_index=True,
             )
         # for bee_id subframe
@@ -746,10 +748,13 @@ def get_intermediate_time_windows_df(df, dt_from, dt_to):
                 current_interaction_end,
                 row["interaction_end"],
             ):
-                intermediate_df = pd.concat( [intermediate_df,
-                    create_row_non_interaction_df(
-                        bee_id, current_interaction_end, row["interaction_start"]
-                    )],
+                intermediate_df = pd.concat(
+                    [
+                        intermediate_df,
+                        create_row_non_interaction_df(
+                            bee_id, current_interaction_end, row["interaction_start"]
+                        ),
+                    ],
                     ignore_index=True,
                 )
                 current_interaction_start = row["interaction_start"]
@@ -759,10 +764,12 @@ def get_intermediate_time_windows_df(df, dt_from, dt_to):
                 break
         if current_interaction_end <= dt_to:
             intermediate_df = pd.concat(
-                [intermediate_df, create_row_non_interaction_df(
-                    bee_id, current_interaction_end, dt_to
-                )
-                 ],
+                [
+                    intermediate_df,
+                    create_row_non_interaction_df(
+                        bee_id, current_interaction_end, dt_to
+                    ),
+                ],
                 ignore_index=True,
             )
     return intermediate_df
@@ -772,10 +779,8 @@ def in_between(
     interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1
 ):
     # assuming interaction_start_0 <= interaction_start_1
-    return (
-        (interaction_start_0
-        <= interaction_start_1)  & (interaction_end_0
-        >= interaction_end_1)
+    return (interaction_start_0 <= interaction_start_1) & (
+        interaction_end_0 >= interaction_end_1
     )
 
 
@@ -784,12 +789,9 @@ def overlap_after(
 ):
     # assuming interaction_start_0 <= interaction_start_1
     return (
-        (interaction_start_0
-        <= interaction_start_1) &
-        (interaction_start_1
-         < interaction_end_0) &
-        (interaction_end_0
-        < interaction_end_1)
+        (interaction_start_0 <= interaction_start_1)
+        & (interaction_start_1 < interaction_end_0)
+        & (interaction_end_0 < interaction_end_1)
     )
 
 
@@ -801,11 +803,13 @@ def after(
 
 
 def create_row_non_interaction_df(bee_id, non_interaction_start, non_interaction_end):
-    return pd.DataFrame({
-        "bee_id": [bee_id],
-        "non_interaction_start": [non_interaction_start],
-        "non_interaction_end": [non_interaction_end],
-    })
+    return pd.DataFrame(
+        {
+            "bee_id": [bee_id],
+            "non_interaction_start": [non_interaction_start],
+            "non_interaction_end": [non_interaction_end],
+        }
+    )
 
 
 def add_circadianess_to_interaction_df(interactions_df, circadian_df):

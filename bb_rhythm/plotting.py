@@ -698,40 +698,37 @@ def get_bin_distributions_as_histmap(
 
 
 def plot_bins_velocity_focal_non_focal(
-    combined_df,
-    plot_path,
-    bin_metric="equal_bin_size",
+    combined_df=interaction_df,
+    bin_parameter2="circadianess_focal",
+    bin_parameter1="circadianess_non_focal",
     n_bins=6,
     step_size=None,
     bin_max_n=None,
     remove_none=True,
+    bin_labels=None,
     change_type="vel_change_bee_focal",
-    agg_func=np.median,
-    fig_title_agg_func="Median",
-    fig_label_bin_metric="Circadian power",
+    group_type1="bins_non_focal",
+    group_type2="bins_focal",
 ):
-    # create pivot for plotting
-    group_type1 = "bins_non_focal"
-    group_type2 = "bins_focal"
-
     # add bins
-    if bin_metric:
-        binning = utils.Binning(bin_name=group_type1, bin_parameter=bin_parameter)
-        df = binning.add_bins_to_df(
-            df,
-            n_bins=n_bins,
-            step_size=step_size,
-            bin_max_n=bin_max_n,
-            remove_none=remove_none,
-        )
-        binning = utils.Binning(bin_name=group_type2, bin_parameter=bin_parameter)
-        df = binning.add_bins_to_df(
-            df,
-            n_bins=n_bins,
-            step_size=step_size,
-            bin_max_n=bin_max_n,
-            remove_none=remove_none,
-        )
+    binning = Binning(bin_name=group_type1, bin_parameter=bin_parameter1)
+    df = binning.add_bins_to_df(
+        combined_df,
+        n_bins=n_bins,
+        step_size=step_size,
+        bin_max_n=bin_max_n,
+        remove_none=remove_none,
+        bin_labels=bin_labels,
+    )
+    binning = Binning(bin_name=group_type2, bin_parameter=bin_parameter2)
+    df = binning.add_bins_to_df(
+        combined_df,
+        n_bins=n_bins,
+        step_size=step_size,
+        bin_max_n=bin_max_n,
+        remove_none=remove_none,
+        bin_labels=bin_labels,
+    )
 
     # create pivot for plotting
     plot_pivot = (
@@ -769,8 +766,8 @@ def prepare_interaction_df_for_plotting(interaction_df, relative_change_clean=Fa
 
     # filter Nans and infs
     to_be_cleaned_columns = [
-        #"amplitude_focal",
-        #"amplitude_non_focal",
+        # "amplitude_focal",
+        # "amplitude_non_focal",
         "vel_change_bee_focal",
         "vel_change_bee_non_focal",
         "circadianess_focal",
