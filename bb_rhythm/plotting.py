@@ -698,7 +698,8 @@ def get_bin_distributions_as_histmap(
 
 
 def plot_bins_velocity_focal_non_focal(
-    combined_df=interaction_df,
+    combined_df,
+    plot_path,
     bin_parameter2="circadianess_focal",
     bin_parameter1="circadianess_non_focal",
     n_bins=6,
@@ -709,6 +710,9 @@ def plot_bins_velocity_focal_non_focal(
     change_type="vel_change_bee_focal",
     group_type1="bins_non_focal",
     group_type2="bins_focal",
+    fig_label_bin_metric="Circadian power",
+    agg_func="median",
+    fig_title_agg_func="Median",
 ):
     # add bins
     binning = Binning(bin_name=group_type1, bin_parameter=bin_parameter1)
