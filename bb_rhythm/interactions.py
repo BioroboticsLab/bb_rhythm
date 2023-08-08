@@ -392,7 +392,7 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
         ]
     )
     concat_circ(combined_df, df)
-    # concat_amplitude(combined_df, df)
+    concat_amplitude(combined_df, df)
     concat_ages(combined_df, df)
     concat_velocity_changes(combined_df, df)
     concat_position(combined_df, df, trans=trans)
@@ -901,11 +901,11 @@ def add_circadian_meta_data_to_intermediate_time_windows_df(
                 meta_params_dict[param][index] = interaction_df[
                     (row["bee_id"] == interaction_df["bee_id_focal"])
                     & (
-                        row["interaction_start"].dt.date
+                        row["non_interaction_start"].to_pydatetime().date()
                         == interaction_df["interaction_start"].dt.date
                     )
-                ][param + "_focal"].sample(n=1)
-            except KeyError:
+                ][param + "_focal"].sample(n=1).iloc[0]
+            except (KeyError, ValueError):
                 continue
     for param in meta_params:
         intermediate_df[param] = meta_params_dict[param]
