@@ -22,6 +22,7 @@ class Binning:
         Creates self.bins according step size and bin number limit.
         """
         if bins is not None:
+            bins.append(self.bin_max_value)
             self.bins = pd.cut(
                 x=df[self.bin_parameter], bins=pd.IntervalIndex.from_breaks(bins)
             )
@@ -63,7 +64,10 @@ class Binning:
                 self.bin_labels[b] = label
                 i += 1
             else:
-                self.bin_labels[b] = "Nan"
+                if self.remove_none:
+                    self.bin_labels[b] = np.nan
+                else:
+                    self.bin_labels[b] = "Nan"
 
     def add_bins_to_df(
         self,
@@ -75,6 +79,7 @@ class Binning:
         bins=None,
         bin_labels=None,
     ):
+        self.remove_none = remove_none
         self.bin_max_value = df[self.bin_parameter].max()
         # case if not custom
         if self.bins is None:
@@ -93,7 +98,5 @@ class Binning:
         self.create_bin(df=df, bins=bins)
         self.create_bin_labels(bin_labels)
         self.replace_bin_identifier_by_bin_map_identifier(df)
-        self.remove_none = remove_none
-        if self.remove_none:
-            df = df[df[self.bin_name] != "Nan"]
+        df.dropna(subset=[self.bin_name], inplace=True)
         return df

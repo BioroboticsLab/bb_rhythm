@@ -13,110 +13,6 @@ from . import utils
 from . import rhythm
 from . import interactions
 
-# Fig 6
-def plot_body_location_of_interactions(
-    vel_change_matrix_df,
-    plot_dir=None,
-    imshow=False,
-    annotate=False,
-    ax=None,
-    title_extra=None,
-):
-    # plot settings
-    rcParams.update({"figure.autolayout": True})
-    plt.rcParams["axes.facecolor"] = "white"
-    plt.tight_layout()
-
-    # create figure
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(16, 12))
-
-    # plot
-    sns.scatterplot(
-        data=vel_change_matrix_df,
-        x="x",
-        y="y",
-        hue="vel_change_bee_focal",
-        palette="viridis",
-        hue_norm=(
-            vel_change_matrix_df["vel_change_bee_focal"][
-                vel_change_matrix_df["vel_change_bee_focal"] != 0.0
-            ].quantile(0.05),
-            vel_change_matrix_df["vel_change_bee_focal"][
-                vel_change_matrix_df["vel_change_bee_focal"] != 0.0
-            ].quantile(0.95),
-        ),
-        size="count",
-        sizes=(0, 500),
-        ax=ax,
-    )
-
-    # add annotations one by one with a loop
-    if annotate:
-        vel_change_matrix_df.vel_change_bee_focal = (
-            vel_change_matrix_df.vel_change_bee_focal.round(2)
-        )
-        for line in range(0, vel_change_matrix_df.shape[0]):
-            ax.text(
-                vel_change_matrix_df.x[line],
-                vel_change_matrix_df.y[line],
-                vel_change_matrix_df.vel_change_bee_focal[line],
-                horizontalalignment="center",
-                color="black",
-            )
-
-    # legend settings
-    handles, labels = ax.get_legend_handles_labels()
-    labels = [
-        "Velocity change" if item == "vel_change_bee_focal" else item for item in labels
-    ]
-    labels = ["Count" if item == "count" else item for item in labels]
-    ax.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
-
-    # label plot
-    plt.xlabel("x position")
-    plt.ylabel("y position")
-
-    if title_extra is None:
-        ax.set_title("Velocity change per body location")
-    else:
-        ax.set_title("Velocity change per body location\n%s" % str(title_extra))
-    if imshow:
-        plt.imshow()
-    if plot_dir:
-        plt.savefig(plot_dir)
-
-
-def transform_interaction_df_to_vel_change_matrix_df(vel_change_df_trans):
-    # group velocity changes by coordinates
-    vel_change_matrix_df = (
-        vel_change_df_trans.groupby(["focal0_x_trans", "focal0_y_trans"])[
-            "vel_change_bee_focal"
-        ]
-        .agg([("count", "count"), ("vel_change_bee_focal", "median")])
-        .reset_index()
-    )
-    vel_change_matrix_df.rename(
-        columns={"focal0_x_trans": "x", "focal0_y_trans": "y"}, inplace=True
-    )
-    return vel_change_matrix_df
-
-
-def transform_interaction_matrix_to_df(vel_change_matrix, count_matrix):
-    vel_change_matrix_df = (
-        pd.DataFrame(vel_change_matrix)
-        .stack()
-        .rename_axis(["y", "x"])
-        .reset_index(name="vel_change_bee_focal")
-    )
-    count_matrix_df = (
-        pd.DataFrame(count_matrix)
-        .stack()
-        .rename_axis(["y", "x"])
-        .reset_index(name="count")
-    )
-    return pd.merge(vel_change_matrix_df, count_matrix_df, on=["y", "x"], how="outer")
-
 
 # Fig. 1
 def plot_velocity_over_time_with_weather(
@@ -608,7 +504,7 @@ def plot_agg_well_tested_circadianess_per_bee_age(
         norm=(min_count, max_count),
         plot_type=plot_type,
         x=binning.bin_name,
-        order=sorted(list(binning.bin_labels.values())),
+        order=sorted(list(pd.Series(binning.bin_labels).dropna().unique())),
     )
 
     # set axis properties
@@ -931,15 +827,58 @@ def plot_histogram_phase_dist(circadianess_df, plot_path=None):
         plt.savefig(plot_path)
 
 
+def apply_three_group_age_map_for_plotting_phase(circadianess_df):
+    # subgroup them by age and replace in human-readable form
+    max_age = circadianess_df.age.max()
+    circadianess_df["age_bins"] = pd.cut(
+        x=circadianess_df["age"], bins=[-1, 0, 10, 25, max_age]
+    )
+
+    age_map = {
+        "(0.0, 10.0]": "Age < 10 days",
+        "(10.0, 25.0]": "Age >= 10, < 25 days",
+        ("(25.0, %s]" % str(float(max_age))): "Age >= 25 days",
+        "(-1.0, 0.0]": "Nan",
+        "nan": "Nan",
+    }
+    circadianess_df["Age [days]"] = [
+        age_dict[str(item)] for item in circadianess_df["age_bins"]
+    ]
+    circadianess_df = circadianess_df[circadianess_df["Age [days]"] != "Nan"]
+    return circadianess_df
+
+
 def plot_phase_per_age_group(
-    circadianess_df, plot_path=None, fit_type="cosine", time_reference=None
+    circadianess_df,
+    plot_path=None,
+    fit_type="cosine",
+    time_reference=None,
+    bin_name="Age [days]",
+    bin_parameter="age",
+    n_bins=None,
+    step_size=None,
+    bin_max_n=None,
+    remove_none=True,
+    bins=[0, 10, 25],
+    bin_labels=["Age < 10 days", "Age >= 10, < 25 days", "Age >= 25 days"]
 ):
-    # add age bins
-    circadianess_df = apply_three_group_age_map_for_plotting_phase(circadianess_df)
+    # add bins
+    binning = Binning(bin_name=bin_name, bin_parameter=bin_parameter)
+    circadianess_df = binning.add_bins_to_df(
+        combined_df,
+        n_bins=n_bins,
+        step_size=step_size,
+        bin_max_n=bin_max_n,
+        remove_none=remove_none,
+        bins=bins,
+        bin_labels=bin_labels,
+    )
+
     # map time interval of [-pi, pi] to 24h
     circadianess_df = rhythm.add_phase_plt_to_df(
         circadianess_df, fit_type=fit_type, time_reference=time_reference
     )
+
     # plot
     plot_histogram_phase_dist(circadianess_df, plot_path=plot_path)
 
@@ -1062,6 +1001,110 @@ def plot_phase_per_date(phase_per_date_df, plot_path=None):
     if plot_path:
         plt.savefig(plot_path)
 
+
+# Fig 6
+def plot_body_location_of_interactions(
+    vel_change_matrix_df,
+    plot_dir=None,
+    imshow=False,
+    annotate=False,
+    ax=None,
+    title_extra=None,
+):
+    # plot settings
+    rcParams.update({"figure.autolayout": True})
+    plt.rcParams["axes.facecolor"] = "white"
+    plt.tight_layout()
+
+    # create figure
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(16, 12))
+
+    # plot
+    sns.scatterplot(
+        data=vel_change_matrix_df,
+        x="x",
+        y="y",
+        hue="vel_change_bee_focal",
+        palette="viridis",
+        hue_norm=(
+            vel_change_matrix_df["vel_change_bee_focal"][
+                vel_change_matrix_df["vel_change_bee_focal"] != 0.0
+            ].quantile(0.05),
+            vel_change_matrix_df["vel_change_bee_focal"][
+                vel_change_matrix_df["vel_change_bee_focal"] != 0.0
+            ].quantile(0.95),
+        ),
+        size="count",
+        sizes=(0, 500),
+        ax=ax,
+    )
+
+    # add annotations one by one with a loop
+    if annotate:
+        vel_change_matrix_df.vel_change_bee_focal = (
+            vel_change_matrix_df.vel_change_bee_focal.round(2)
+        )
+        for line in range(0, vel_change_matrix_df.shape[0]):
+            ax.text(
+                vel_change_matrix_df.x[line],
+                vel_change_matrix_df.y[line],
+                vel_change_matrix_df.vel_change_bee_focal[line],
+                horizontalalignment="center",
+                color="black",
+            )
+
+    # legend settings
+    handles, labels = ax.get_legend_handles_labels()
+    labels = [
+        "Velocity change" if item == "vel_change_bee_focal" else item for item in labels
+    ]
+    labels = ["Count" if item == "count" else item for item in labels]
+    ax.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
+
+    # label plot
+    plt.xlabel("x position")
+    plt.ylabel("y position")
+
+    if title_extra is None:
+        ax.set_title("Velocity change per body location")
+    else:
+        ax.set_title("Velocity change per body location\n%s" % str(title_extra))
+    if imshow:
+        plt.imshow()
+    if plot_dir:
+        plt.savefig(plot_dir)
+
+
+def transform_interaction_df_to_vel_change_matrix_df(vel_change_df_trans):
+    # group velocity changes by coordinates
+    vel_change_matrix_df = (
+        vel_change_df_trans.groupby(["focal0_x_trans", "focal0_y_trans"])[
+            "vel_change_bee_focal"
+        ]
+        .agg([("count", "count"), ("vel_change_bee_focal", "median")])
+        .reset_index()
+    )
+    vel_change_matrix_df.rename(
+        columns={"focal0_x_trans": "x", "focal0_y_trans": "y"}, inplace=True
+    )
+    return vel_change_matrix_df
+
+
+def transform_interaction_matrix_to_df(vel_change_matrix, count_matrix):
+    vel_change_matrix_df = (
+        pd.DataFrame(vel_change_matrix)
+        .stack()
+        .rename_axis(["y", "x"])
+        .reset_index(name="vel_change_bee_focal")
+    )
+    count_matrix_df = (
+        pd.DataFrame(count_matrix)
+        .stack()
+        .rename_axis(["y", "x"])
+        .reset_index(name="count")
+    )
+    return pd.merge(vel_change_matrix_df, count_matrix_df, on=["y", "x"], how="outer")
 
 # others
 def plot_circadian_fit(
