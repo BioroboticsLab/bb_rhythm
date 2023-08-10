@@ -863,7 +863,7 @@ def plot_phase_per_age_group(
     bin_labels=["Age < 10 days", "Age >= 10, < 25 days", "Age >= 25 days"]
 ):
     # add bins
-    binning = Binning(bin_name=bin_name, bin_parameter=bin_parameter)
+    binning = utils.Binning(bin_name=bin_name, bin_parameter=bin_parameter)
     circadianess_df = binning.add_bins_to_df(
         combined_df,
         n_bins=n_bins,
