@@ -13,7 +13,7 @@ from . import utils
 from . import rhythm
 from . import interactions
 
-
+# Fig 6
 def plot_body_location_of_interactions(
     vel_change_matrix_df,
     plot_dir=None,
@@ -118,6 +118,7 @@ def transform_interaction_matrix_to_df(vel_change_matrix, count_matrix):
     return pd.merge(vel_change_matrix_df, count_matrix_df, on=["y", "x"], how="outer")
 
 
+# Fig. 1
 def plot_velocity_over_time_with_weather(
     velocity_df,
     weather_df,
@@ -219,6 +220,8 @@ def plot_velocity_per_age_group(
     age_map=False,
     age_bins=None,
     age_map_step_size=5,
+    bin_max_n=None,
+    bin_labels=None,
     smoothing=False,
     rounded=False,
     round_time="60min",
@@ -241,15 +244,19 @@ def plot_velocity_per_age_group(
     # add human-readable age bins to df
     sorted_by = "age"
     if age_map:
-        sorted_by = "Age [days]"
-        binning = utils.Binning(bin_name=sorted_by, bin_parameter="age")
-        binning.set_bins(age_bins)
-        time_age_velocity_df = binning.add_bins(
-            time_age_velocity_df, step_size=age_map_step_size
+        binning = utils.Binning(bin_name="Age [days]", bin_parameter=sorted_by)
+        binning.add_bins_to_df(
+            time_age_velocity_df,
+            n_bins=age_bins_n,
+            step_size=age_map_step_size,
+            bin_max_n=bin_max_n,
+            age_bins=age_bins,
+            bin_labels=bin_labels,
         )
+        sorted_by=binning.bin_name
 
     # create color palette
-    palette = create_age_color_palette(binning.bin_map, sorted_by, time_age_velocity_df)
+    palette = create_age_color_palette(binning.bins.unique(), sorted_by, time_age_velocity_df)
 
     # smooth lines per group, but still plot transparently 95% confidence interval for non-smoothed lines
     if smoothing:
@@ -265,11 +272,7 @@ def plot_velocity_per_age_group(
 
     # add grey bars for nighttime
     add_grey_nighttime_bars(ax, time_age_velocity_df)
-    """ for day in np.unique([day.date() for day in time_age_velocity_df.time]):  # TODO: start always at 0:00:00
-        day = datetime.datetime.combine(day, time_age_velocity_df.time.iloc[0].to_pydatetime().time())
-        ax.axvspan(day, day + datetime.timedelta(hours=6), facecolor='lightgrey', alpha=0.5)
-        ax.axvspan(day + datetime.timedelta(hours=18), day + datetime.timedelta(hours=24), facecolor='lightgrey',
-                   alpha=0.5)"""
+
     # axis settings
     ax.set_ylabel("Mean movement speed [cm/s]")
     ax.set_xlim(xmin=dt_from, xmax=dt_to)
@@ -353,7 +356,8 @@ def round_time_age_velocity_df(round_time, time_age_velocity_df):
     return time_age_velocity_df
 
 
-def plot_boxplot(circadianess_df, ax, x="age_bins"):
+# Fig. 2
+def plot_boxplot(circadianess_df, ax, x="age_bins", order=None):
     sns.boxplot(
         circadianess_df,
         ax=ax,
@@ -366,6 +370,7 @@ def plot_boxplot(circadianess_df, ax, x="age_bins"):
         medianprops={"color": "green", "linewidth": 1},
         showfliers=True,
         capprops={"color": "blue"},
+        order=order,
     )
 
 
@@ -387,6 +392,7 @@ def plot_raincloudplot(circadianess_df, ax, x="age_bins", hue_norm=None):
         cut=0,
         inner=None,
         ax=ax,
+        order=order,
     )
 
     # Clip the lower half of each violin.
@@ -406,6 +412,7 @@ def plot_raincloudplot(circadianess_df, ax, x="age_bins", hue_norm=None):
         size=7,
         ax=ax,
         hue_norm=hue_norm,
+        order=order,
     )
 
     # Shift each strip plot strictly below the correponding volin.
@@ -426,6 +433,7 @@ def plot_raincloudplot(circadianess_df, ax, x="age_bins", hue_norm=None):
         whiskerprops=dict(linewidth=3),
         capprops=dict(linewidth=3),
         medianprops=dict(linewidth=3),
+        order=order,
         ax=ax,
     )
 
@@ -453,6 +461,7 @@ def plot_violin_swarm_plot(
         ax=ax,
         inner="quartile",
         alpha=0.5,
+        order=order,
     )
     circadianess_df["count"][circadianess_df["count"] == "nan"] = 0.0
 
@@ -467,6 +476,7 @@ def plot_violin_swarm_plot(
             palette="viridis",
             size_norm=size_norm,
             ax=ax,
+            order=order,
         )
     else:
         sns.scatterplot(
@@ -476,6 +486,7 @@ def plot_violin_swarm_plot(
             size="count",
             size_norm=size_norm,
             ax=ax,
+            order=order,
         )
 
     # annotate number of counts
@@ -507,13 +518,25 @@ def plot_circadianess_per_age_group(
     file_path=None,
     age_map_step_size=5,
     age_bins=None,
+    age_map=False,
+    bin_max_n=None,
+    bin_labels=None,
+    bin_parameter="age",
+    bin_name="Age [days]",
 ):
     # calculate well tested circadianess
     rhythm.calculate_well_tested_circadianess(circadianess_df)
 
-    # create age map and bins
-    utils.add_age_bins(circadianess_df, age_map_step_size, age_bins)
-    circadianess_df = circadianess_df[circadianess_df["age_bins"] != "Nan"]
+    # add human-readable age bins to df
+    binning = utils.Binning(bin_name=bin_name, bin_parameter=bin_parameter)
+    binning.add_bins_to_df(
+        time_age_velocity_df,
+        n_bins=age_bins_n,
+        step_size=age_map_step_size,
+        bin_max_n=bin_max_n,
+        age_bins=age_bins,
+        bin_labels=bin_labels,
+    )
 
     circadianess_df_young = None
     if young:
@@ -540,6 +563,7 @@ def plot_circadianess_per_age_group(
         plot_type,
         young,
         file_path,
+        binning,
     )
 
 
@@ -551,6 +575,7 @@ def plot_agg_well_tested_circadianess_per_bee_age(
     plot_type="boxplot",
     young=False,
     file_path=None,
+    binning=None,
 ):
     if young:
         # create figure and subplots
@@ -582,6 +607,8 @@ def plot_agg_well_tested_circadianess_per_bee_age(
         circadianess_df=circadianess_df,
         norm=(min_count, max_count),
         plot_type=plot_type,
+        x=binning.bin_name,
+        order=sorted(list(binning.bin_labels.values())),
     )
 
     # set axis properties
@@ -609,12 +636,13 @@ def plot_agg_circadianess_according_plot_type(
     circadianess_df=None,
     norm=None,
     plot_type="boxplot",
-    x="age_bins",
+    x="Age [days]",
     date_ann=False,
     count_ann=False,
+    order=None,
 ):
     if plot_type == "boxplot":
-        plot_boxplot(circadianess_df, x=x, ax=ax)
+        plot_boxplot(circadianess_df, x=x, ax=ax, order=order)
     elif plot_type == "violin_swarm":
         plot_violin_swarm_plot(
             circadianess_df,
@@ -623,9 +651,10 @@ def plot_agg_circadianess_according_plot_type(
             size_norm=norm,
             date_ann=date_ann,
             count_ann=count_ann,
+            order=order,
         )
     elif plot_type == "raincloud":
-        plot_raincloudplot(circadianess_df, ax=ax, x=x, hue_norm=norm)
+        plot_raincloudplot(circadianess_df, ax=ax, x=x, hue_norm=norm, order=order)
     else:
         raise ValueError(
             "Incorrect plot type. Possible types: ['boxplot', 'violin_swarm', 'raincloud']"
@@ -641,6 +670,7 @@ def set_ax_props_circadianess_per_age_group_plot(ax):
     ax.set_ylabel("")
 
 
+# Fig. 5
 def get_bin_distributions_as_histmap(
     df,
     plot_path,
@@ -698,7 +728,7 @@ def get_bin_distributions_as_histmap(
 
 
 def plot_bins_velocity_focal_non_focal(
-    combined_df=interaction_df,
+    combined_df,
     bin_parameter2="circadianess_focal",
     bin_parameter1="circadianess_non_focal",
     n_bins=6,
@@ -712,7 +742,7 @@ def plot_bins_velocity_focal_non_focal(
 ):
     # add bins
     binning = Binning(bin_name=group_type1, bin_parameter=bin_parameter1)
-    df = binning.add_bins_to_df(
+    combined_df = binning.add_bins_to_df(
         combined_df,
         n_bins=n_bins,
         step_size=step_size,
@@ -721,7 +751,7 @@ def plot_bins_velocity_focal_non_focal(
         bin_labels=bin_labels,
     )
     binning = Binning(bin_name=group_type2, bin_parameter=bin_parameter2)
-    df = binning.add_bins_to_df(
+    combined_df = binning.add_bins_to_df(
         combined_df,
         n_bins=n_bins,
         step_size=step_size,
@@ -839,6 +869,7 @@ def plot_p_values_per_bin_from_test(
     return ax
 
 
+# Fig. 3
 def get_label_for_line(line):
     leg = line.axes.get_legend()
     ind = line.axes.get_lines().index(line)
@@ -1028,6 +1059,7 @@ def plot_phase_per_date(phase_per_date_df, plot_path=None):
         plt.savefig(plot_path)
 
 
+# others
 def plot_circadian_fit(
     df_row,
     velocities=None,
