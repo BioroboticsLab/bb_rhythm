@@ -715,7 +715,7 @@ def plot_bins_velocity_focal_non_focal(
     fig_title_agg_func="Median",
 ):
     # add bins
-    binning = Binning(bin_name=group_type1, bin_parameter=bin_parameter1)
+    binning = utils.Binning(bin_name=group_type1, bin_parameter=bin_parameter1)
     df = binning.add_bins_to_df(
         combined_df,
         n_bins=n_bins,
@@ -724,7 +724,7 @@ def plot_bins_velocity_focal_non_focal(
         remove_none=remove_none,
         bin_labels=bin_labels,
     )
-    binning = Binning(bin_name=group_type2, bin_parameter=bin_parameter2)
+    binning = utils.Binning(bin_name=group_type2, bin_parameter=bin_parameter2)
     df = binning.add_bins_to_df(
         combined_df,
         n_bins=n_bins,
@@ -770,8 +770,8 @@ def prepare_interaction_df_for_plotting(interaction_df, relative_change_clean=Fa
 
     # filter Nans and infs
     to_be_cleaned_columns = [
-        # "amplitude_focal",
-        # "amplitude_non_focal",
+        "amplitude_focal",
+        "amplitude_non_focal",
         "vel_change_bee_focal",
         "vel_change_bee_non_focal",
         "circadianess_focal",
@@ -821,13 +821,13 @@ def plot_p_values_per_bin_from_test(
     if x_labels.ndim > 1:
         x_labels_copy = x_labels.copy()
         x_labels = [
-            f"({x_label[1].left}, {x_label[1].right}]\n({y_label[1].left}, {y_label[1].right}]"
+            f"{x_label[1]}\n{y_label}"
             for x_label, y_label in zip(
                 x_labels.reshape((n_bins, 2)), y_labels.reshape((n_bins, 2))
             )
         ]
         y_labels = [
-            f"({x_label[0].left}, {x_label[0].right}]\n({y_label[0].left}, {y_label[0].right}]"
+            f"{x_label[0]}\n{y_label[0]}"
             for x_label, y_label in zip(
                 x_labels_copy.reshape((n_bins, 2)), y_labels.reshape((n_bins, 2))
             )
