@@ -326,14 +326,14 @@ def get_dist_special_coord(row):
     return np.linalg.norm([row["x_1"], row["y_1"]])
 
 
-def get_duration(df):
+def get_duration(df, end_parameter="interaction_end", start_parameter="interaction_start"):
     df["duration"] = [
-        row.total_seconds() for row in (df["interaction_end"] - df["interaction_start"])
+        row.total_seconds() for row in (df[end_parameter] - df[start_parameter])
     ]
 
 
-def get_hour(df):
-    df["hour"] = df["interaction_start"].dt.hour
+def get_hour(df, start_parameter="interaction_start"):
+    df["hour"] = df[start_parameter].dt.hour
 
 
 def concat_interaction_times(combined_df, df):
@@ -383,8 +383,8 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "vel_change_bee_non_focal",
             "rel_change_bee_focal",
             "rel_change_bee_non_focal",
-            # "amplitude_focal",
-            # "amplitude_non_focal",
+            "amplitude_focal",
+            "amplitude_non_focal",
             "bee_id_focal",
             "bee_id_non_focal",
             "interaction_start",
