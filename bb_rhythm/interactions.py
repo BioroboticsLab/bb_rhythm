@@ -326,7 +326,9 @@ def get_dist_special_coord(row):
     return np.linalg.norm([row["x_1"], row["y_1"]])
 
 
-def get_duration(df, end_parameter="interaction_end", start_parameter="interaction_start"):
+def get_duration(
+    df, end_parameter="interaction_end", start_parameter="interaction_start"
+):
     df["duration"] = [
         row.total_seconds() for row in (df[end_parameter] - df[start_parameter])
     ]
@@ -898,13 +900,17 @@ def add_circadian_meta_data_to_intermediate_time_windows_df(
     for index, row in intermediate_df.iterrows():
         for param in meta_params:
             try:
-                meta_params_dict[param][index] = interaction_df[
-                    (row["bee_id"] == interaction_df["bee_id_focal"])
-                    & (
-                        row["non_interaction_start"].to_pydatetime().date()
-                        == interaction_df["interaction_start"].dt.date
-                    )
-                ][param + "_focal"].sample(n=1).iloc[0]
+                meta_params_dict[param][index] = (
+                    interaction_df[
+                        (row["bee_id"] == interaction_df["bee_id_focal"])
+                        & (
+                            row["non_interaction_start"].to_pydatetime().date()
+                            == interaction_df["interaction_start"].dt.date
+                        )
+                    ][param + "_focal"]
+                    .sample(n=1)
+                    .iloc[0]
+                )
             except (KeyError, ValueError):
                 continue
     for param in meta_params:

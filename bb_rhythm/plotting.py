@@ -149,10 +149,12 @@ def plot_velocity_per_age_group(
             age_bins=age_bins,
             bin_labels=bin_labels,
         )
-        sorted_by=binning.bin_name
+        sorted_by = binning.bin_name
 
     # create color palette
-    palette = create_age_color_palette(binning.bins.unique(), sorted_by, time_age_velocity_df)
+    palette = create_age_color_palette(
+        binning.bins.unique(), sorted_by, time_age_velocity_df
+    )
 
     # smooth lines per group, but still plot transparently 95% confidence interval for non-smoothed lines
     if smoothing:
@@ -803,20 +805,25 @@ def apply_three_group_age_map_for_plotting_phase(circadianess_df):
     return circadianess_df
 
 
-def plot_histogram_phase_dist(circadianess_df, plot_path=None):
+def plot_histogram_phase_dist(
+    circadianess_df,
+    plot_path=None,
+    hue="Age [days]",
+    hue_order=["Age < 10 days", "Age >= 10, < 25 days", "Age >= 25 days"],
+):
     # plot histogram grouped phase distribution by age
     sns.set_theme()
     fig, ax = plt.subplots(figsize=(16, 10))
     sns.histplot(
         circadianess_df,
         x="phase_plt",
-        hue="Age [days]",
+        hue=hue,
         common_norm=False,
         kde=True,
         element="step",
         stat="probability",
         ax=ax,
-        hue_order=["Age < 10 days", "Age >= 10, < 25 days", "Age >= 25 days"],
+        hue_order=hue_order,
     )
     ax.xaxis.set_major_locator(ticker.MultipleLocator(2))
     plt.xlabel("Phase in (h)")
@@ -825,27 +832,6 @@ def plot_histogram_phase_dist(circadianess_df, plot_path=None):
     plt.grid(visible=True)
     if plot_path:
         plt.savefig(plot_path)
-
-
-def apply_three_group_age_map_for_plotting_phase(circadianess_df):
-    # subgroup them by age and replace in human-readable form
-    max_age = circadianess_df.age.max()
-    circadianess_df["age_bins"] = pd.cut(
-        x=circadianess_df["age"], bins=[-1, 0, 10, 25, max_age]
-    )
-
-    age_map = {
-        "(0.0, 10.0]": "Age < 10 days",
-        "(10.0, 25.0]": "Age >= 10, < 25 days",
-        ("(25.0, %s]" % str(float(max_age))): "Age >= 25 days",
-        "(-1.0, 0.0]": "Nan",
-        "nan": "Nan",
-    }
-    circadianess_df["Age [days]"] = [
-        age_dict[str(item)] for item in circadianess_df["age_bins"]
-    ]
-    circadianess_df = circadianess_df[circadianess_df["Age [days]"] != "Nan"]
-    return circadianess_df
 
 
 def plot_phase_per_age_group(
@@ -860,12 +846,12 @@ def plot_phase_per_age_group(
     bin_max_n=None,
     remove_none=True,
     bins=[0, 10, 25],
-    bin_labels=["Age < 10 days", "Age >= 10, < 25 days", "Age >= 25 days"]
+    bin_labels=["Age < 10 days", "Age >= 10, < 25 days", "Age >= 25 days"],
 ):
     # add bins
-    binning = Binning(bin_name=bin_name, bin_parameter=bin_parameter)
+    binning = utils.Binning(bin_name=bin_name, bin_parameter=bin_parameter)
     circadianess_df = binning.add_bins_to_df(
-        combined_df,
+        circadianess_df,
         n_bins=n_bins,
         step_size=step_size,
         bin_max_n=bin_max_n,
@@ -880,7 +866,12 @@ def plot_phase_per_age_group(
     )
 
     # plot
-    plot_histogram_phase_dist(circadianess_df, plot_path=plot_path)
+    plot_histogram_phase_dist(
+        circadianess_df,
+        plot_path=plot_path,
+        hue=binning.bin_name,
+        hue_order=sorted(list(pd.Series(binning.bin_labels).dropna().unique())),
+    )
 
 
 def plot_phase_per_age(
@@ -1105,6 +1096,7 @@ def transform_interaction_matrix_to_df(vel_change_matrix, count_matrix):
         .reset_index(name="count")
     )
     return pd.merge(vel_change_matrix_df, count_matrix_df, on=["y", "x"], how="outer")
+
 
 # others
 def plot_circadian_fit(
