@@ -3,11 +3,167 @@ import pandas as pd
 import datetime
 import pytz
 import scipy
+import statsmodels.formula.api as smf
+import statsmodels.sandbox.stats.runs
+import scipy.stats as stats
 
 import bb_circadian.lombscargle
 import bb_behavior.db
+from statsmodels.regression.linear_model import RegressionResults
+import statsmodels.stats.stattools
 
 from . import time, plotting
+
+
+def fit_cosinor(X, Y):
+    data = pd.DataFrame()
+    data["x"] = X
+    data["y"] = Y
+    frequency = 2.0 * np.pi * 1 / 60 / 60 / 24
+    data["beta_x"] = np.sin((data.x / (24 * 60 * 60)) * 2.0 * np.pi)
+    data["gamma_x"] = np.cos((data.x / (24 * 60 * 60)) * 2.0 * np.pi)
+    trigonometric_regression_model = smf.ols("y ~ beta_x + gamma_x", data)
+    fit: RegressionResults = trigonometric_regression_model.fit()
+    return fit
+
+
+def derive_cosine_parameter_from_cosinor(cosinor_fit):
+    mesor = cosinor_fit.params[0]
+    amplitude = (cosinor_fit.params.beta_x**2 + cosinor_fit.params.gamma_x**2) ** (
+        1 / 2
+    )
+    acrophase = np.arctan(-cosinor_fit.params.beta_x / cosinor_fit.params.gamma_x)
+    return mesor, amplitude, acrophase
+
+
+def get_confidence_intervals_cosinor(mesor, amplitude, acrophase, cosinor_fit):
+    # covariance matrix
+    # subset for amplitude and acrophase
+    indVmat = cosinor_fit.cov_params().loc[["beta_x", "gamma_x"], ["beta_x", "gamma_x"]]
+
+    beta_r = cosinor_fit.params.beta_x
+    beta_s = cosinor_fit.params.gamma_x
+    a_r = (beta_r**2 + beta_s**2) ** (-0.5) * beta_r
+    a_s = (beta_r**2 + beta_s**2) ** (-0.5) * beta_s
+    b_r = (1 / (1 + (beta_s**2 / beta_r**2))) * (-beta_s / beta_r**2)
+    b_s = (1 / (1 + (beta_s**2 / beta_r**2))) * (1 / beta_r)
+
+    jac = np.array([[a_r, a_s], [b_r, b_s]])
+    cov_trans = np.dot(np.dot(jac, indVmat), np.transpose(jac))
+    se_trans_only = np.sqrt(np.diag(cov_trans))
+    students_t = abs(scipy.stats.norm.ppf(0.05 / 2))
+
+    coef_trans = np.array([mesor, amplitude, acrophase])
+    se_trans = np.concatenate(
+        (
+            np.sqrt(
+                np.diag(cosinor_fit.cov_params().loc[["Intercept"], ["Intercept"]])
+            ),
+            se_trans_only,
+        )
+    )
+
+    lower_CI_trans = coef_trans - np.abs(students_t * se_trans)
+    upper_CI_trans = coef_trans + np.abs(students_t * se_trans)
+    return zip(lower_CI_trans, upper_CI_trans)
+
+
+def fit_cosinor_per_bee(day=None, velocities=None, period=24 * 60 * 60):
+    # p_value alpha error correction
+
+    # prepare data: velocities [mm/s] -> Y, timeseries -> X [s]
+    if velocities is None:
+        return None
+    if "offset" in velocities.columns:
+        ts = velocities.offset.values
+    else:
+        ts = np.array([t.total_seconds() for t in velocities.datetime - day])
+    v = velocities.velocity.values
+    assert v.shape[0] == ts.shape[0]
+    X, Y = ts, v
+
+    # make linear regression with least squares for cosinor fit
+    cosinor_fit = fit_cosinor(X, Y)
+
+    # get parameter from model
+    mesor, amplitude, acrophase = derive_cosine_parameter_from_cosinor(cosinor_fit)
+
+    # statistics according to Cornelissen (eqs (8) - (9))
+    # Sum of squares due to regression model = "MSS is the sum of squared differences between the estimated values based on the fitted model and the arithmetic mean."
+    # Residual sum of squared = "RSS is the sum of squared differences between the data and the estimated values from the fitted model"
+
+    # F test for good/significant fit/ model -> 9 cornelliesen
+    # if p <= alpha -> significant rhythm
+    p = cosinor_fit.f_pvalue
+
+    # p for amplitude
+    # z test
+    p_mesor, p_amplitude, p_acrophase = cosinor_fit.pvalues
+
+    # Confidence Intervals for parameters
+    ci_mesor, ci_amplitude, ci_acrophase = get_confidence_intervals_cosinor(
+        mesor, amplitude, acrophase, cosinor_fit
+    )
+
+    # 1 - statistics of Goodness Of Fit according to Cornelissen (eqs (14) - (15))
+    RSS = cosinor_fit.ssr
+    X_periodic = np.round_(X % period, 2)
+    X_unique = np.unique(X_periodic)
+    m = len(X_unique)
+    SSPE = 0
+    for x in X_unique:
+        Y_i_avg = np.mean(Y[X_periodic == x])
+        SSPE += sum((Y[X_periodic == x] - Y_i_avg) ** 2)
+    SSLOF = RSS - SSPE
+
+    # statistics of Goodness Of Fit according to Cornelissen (eqs (14) - (15))
+    F = (SSLOF / (m - 3)) / (SSPE / (cosinor_fit.nobs - m))
+    p_reject = 1 - scipy.stats.f.cdf(F, m - 3, cosinor_fit.nobs - m)
+
+    # 2 - chi_square test for goodness of fit -> residuals are normally distributed
+    chi_square_test_statistic, chi_p_value = scipy.stats.chisquare(
+        Y, cosinor_fit.fittedvalues
+    )
+
+    # 3 - F = (N - 2p - 2)r² / (1-r²) > F -> variance is homogeneous
+    F_hom = (
+        cosinor_fit.nobs
+        * cosinor_fit.fittedvalues.sum() ** 2
+        / (1 - cosinor_fit.fittedvalues.sum() ** 2)
+    )
+    p_hom = 1 - scipy.stats.f.cdf(F_hom, 1, cosinor_fit.nobs)
+
+    # 4 - independence of residuals -> not treat parameters but their CI -> underestimated
+    # -> if violated low-passed filter by averaging or decimation
+    # durbine watson statistic
+    dw = statsmodels.stats.stattools.durbin_watson(cosinor_fit.resid, axis=0)
+
+    # test for stationarity
+    p_adfuller = statsmodels.tsa.stattools.adfuller(Y)[1]
+
+    # r_squared
+    r_squared, r_squared_adj = cosinor_fit.rsquared, cosinor_fit.rsquared_adj
+
+    data = {
+        "mesor": mesor,
+        "amplitude": amplitude,
+        "acrophase": acrophase,
+        "p_value": p,
+        "p_mesor": p_mesor,
+        "p_amplitude": p_amplitude,
+        "p_acrophase": p_acrophase,
+        "ci_mesor": ci_mesor,
+        "ci_amplitude": ci_amplitude,
+        "ci_acrophase": ci_acrophase,
+        "p_reject": p_reject,
+        "r_squared": r_squared,
+        "r_squared_adj": r_squared_adj,
+        "chi_p_value": chi_p_value,
+        "p_hom": p_hom,
+        "dw": dw,
+        "p_adfuller": p_adfuller,
+    }
+    return data
 
 
 # This is copied and modified from bb_circadian.lombscargle
