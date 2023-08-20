@@ -79,9 +79,7 @@ def plot_weather_data(weather_df, axs, dt_from, dt_to):
     )
 
     # plot wind speed
-    plot_weather_subplot(
-        axs[2], dt_from, dt_to, "Wind [m/s]", "wind_speed_mean", weather_df
-    )
+    plot_weather_subplot(axs[2], dt_from, dt_to, "Wind [m/s]", "wind_speed", weather_df)
 
 
 def plot_weather_subplot(ax, dt_from, dt_to, y_label, column, weather_df):
