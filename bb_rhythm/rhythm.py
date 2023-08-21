@@ -11,6 +11,7 @@ import bb_circadian.lombscargle
 import bb_behavior.db
 from statsmodels.regression.linear_model import RegressionResults
 import statsmodels.stats.stattools
+from statsmodels.tsa.stattools import adfuller
 
 from . import time, plotting
 
@@ -68,19 +69,9 @@ def get_confidence_intervals_cosinor(mesor, amplitude, acrophase, cosinor_fit):
     return zip(lower_CI_trans, upper_CI_trans)
 
 
-def fit_cosinor_per_bee(day=None, velocities=None, period=24 * 60 * 60):
+def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     # p_value alpha error correction
-
-    # prepare data: velocities [mm/s] -> Y, timeseries -> X [s]
-    if velocities is None:
-        return None
-    if "offset" in velocities.columns:
-        ts = velocities.offset.values
-    else:
-        ts = np.array([t.total_seconds() for t in velocities.datetime - day])
-    v = velocities.velocity.values
-    assert v.shape[0] == ts.shape[0]
-    X, Y = ts, v
+    X, Y = timeseries, velocities
 
     # make linear regression with least squares for cosinor fit
     cosinor_fit = fit_cosinor(X, Y)
@@ -139,7 +130,7 @@ def fit_cosinor_per_bee(day=None, velocities=None, period=24 * 60 * 60):
     dw = statsmodels.stats.stattools.durbin_watson(cosinor_fit.resid, axis=0)
 
     # test for stationarity
-    p_adfuller = statsmodels.tsa.stattools.adfuller(Y)[1]
+    p_adfuller = adfuller(Y)[1]
 
     # r_squared
     r_squared, r_squared_adj = cosinor_fit.rsquared, cosinor_fit.rsquared_adj
@@ -147,7 +138,7 @@ def fit_cosinor_per_bee(day=None, velocities=None, period=24 * 60 * 60):
     data = {
         "mesor": mesor,
         "amplitude": amplitude,
-        "acrophase": acrophase,
+        "phase": acrophase,
         "p_value": p,
         "p_mesor": p_mesor,
         "p_amplitude": p_amplitude,
@@ -238,28 +229,28 @@ def collect_fit_data_for_bee_date(
     begin_dt = date - delta
     end_dt = date + delta
 
-    try:
-        bee_date_data = fit_circadian_cosine(ts, v, phase=phase)
-    except (RuntimeError, TypeError):
-        return None
-
+    bee_date_data = fit_circadian_cosine(ts, v, phase=phase)
     bee_date_data["bee_id"] = bee_id
     bee_date_data["date"] = date
 
     # Additionally, get night/day velocities.
     try:
-        time_index = pd.DatetimeIndex(velocities.datetime)
-        daytime = time_index.indexer_between_time("9:00", "18:00")
-        nighttime = time_index.indexer_between_time("21:00", "6:00")
-        daytime_velocities = velocities.iloc[daytime].velocity.values
-        nighttime_velocities = velocities.iloc[nighttime].velocity.values
-        bee_date_data["day_mean"] = np.mean(daytime_velocities)
-        bee_date_data["day_std"] = np.std(daytime_velocities)
-        bee_date_data["night_mean"] = np.mean(nighttime_velocities)
-        bee_date_data["night_std"] = np.std(nighttime_velocities)
+        add_velocity_day_night_information(bee_date_data, velocities)
     except:
         raise
     return bee_date_data
+
+
+def add_velocity_day_night_information(bee_date_data, velocities):
+    time_index = pd.DatetimeIndex(velocities.datetime)
+    daytime = time_index.indexer_between_time("9:00", "18:00")
+    nighttime = time_index.indexer_between_time("21:00", "6:00")
+    daytime_velocities = velocities.iloc[daytime].velocity.values
+    nighttime_velocities = velocities.iloc[nighttime].velocity.values
+    bee_date_data["day_mean"] = np.mean(daytime_velocities)
+    bee_date_data["day_std"] = np.std(daytime_velocities)
+    bee_date_data["night_mean"] = np.mean(nighttime_velocities)
+    bee_date_data["night_std"] = np.std(nighttime_velocities)
 
 
 def fit_circadianess_fit_per_bee_phase_variation(
@@ -344,6 +335,50 @@ def fit_circadianess_fit_per_bee(
             assert ValueError
     except (AssertionError, ValueError, IndexError, RuntimeError):
         data = {None: dict(error="Something went wrong during the fit..")}
+    return data
+
+
+def fit_cosinor_fit_per_bee(
+    day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None
+):
+    if bee_age == -1 or bee_age == 0:
+        return {None: dict(error="Bee is already dead or new to colony..")}
+
+    # fetch velocities
+    velocities = bb_behavior.db.trajectory.get_bee_velocities(
+        bee_id, from_dt, to_dt, confidence_threshold=0.1, max_mm_per_second=15.0
+    )
+
+    if velocities is None:
+        return {None: dict(error="No velocities could be fetched..")}
+
+    # get right data types
+    day = datetime.datetime.fromisoformat(day)
+    assert day.tzinfo == datetime.timezone.utc
+    day = day.replace(tzinfo=pytz.UTC)
+
+    # remove NaNs and infs
+    velocities = velocities[~pd.isnull(velocities.velocity)]
+
+    # get timeseries and velocities
+    if "offset" in velocities.columns:
+        ts = velocities.offset.values
+    else:
+        ts = np.array([t.total_seconds() for t in velocities.datetime - day])
+    v = velocities.velocity.values
+    assert v.shape[0] == ts.shape[0]
+
+    # calculate circadianess
+    data = fit_cosinor_per_bee(ts, v)
+    if data:
+        # add parameters
+        data["bee_id"] = bee_id
+        data["age"] = bee_age
+        data["date"] = day
+        # parameters for quality of velocities
+        add_velocity_quality_params(data, velocities)
+        # extract from parameters of fit
+        add_velocity_day_night_information(data, velocities)
     return data
 
 
