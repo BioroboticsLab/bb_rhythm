@@ -8,10 +8,6 @@ from wetterdienst import Settings
 import bb_behavior.db
 from functools import reduce
 import pandas as pd
-import numpy as np
-from statsmodels.tsa.stattools import adfuller
-from . import statistics
-import scipy
 
 
 def get_weather_parameter_df(
@@ -68,10 +64,19 @@ def get_weather_frame(
 def combine_weather_velocity_dfs(velocity_df, weather_df):
     velocity_df.rename(columns={"datetime": "date"}, inplace=True)
     velocity_df.drop(columns=["time_passed"], inplace=True)
-    velocity_df = velocity_df[~(pd.isnull(velocity_df.velocity) or pd.isinf(velocity_df.velocity))]
-    velocity_df = velocity_df.date.dt.round("10min").groupby(["date"])["velocity"].mean().reset_index()
+    velocity_df = velocity_df[
+        ~(pd.isnull(velocity_df.velocity) or pd.isinf(velocity_df.velocity))
+    ]
+    velocity_df = (
+        velocity_df.date.dt.round("10min")
+        .groupby(["date"])["velocity"]
+        .mean()
+        .reset_index()
+    )
     weather_df.drop(columns=["station_id"], inplace=True)
-    velocity_weather_df = weather_df.set_index("date").join(velocity_df.set_index("date"), on="date", how="inner")
+    velocity_weather_df = weather_df.set_index("date").join(
+        velocity_df.set_index("date"), on="date", how="inner"
+    )
     return velocity_weather_df
 
 

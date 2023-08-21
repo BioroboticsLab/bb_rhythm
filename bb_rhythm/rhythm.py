@@ -37,7 +37,7 @@ def derive_cosine_parameter_from_cosinor(cosinor_fit):
     return mesor, amplitude, acrophase
 
 
-def get_confidence_intervals_cosinor(mesor, amplitude, acrophase, cosinor_fit):
+def get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit):
     # covariance matrix
     # subset for amplitude and acrophase
     indVmat = cosinor_fit.cov_params().loc[["beta_x", "gamma_x"], ["beta_x", "gamma_x"]]
@@ -66,7 +66,8 @@ def get_confidence_intervals_cosinor(mesor, amplitude, acrophase, cosinor_fit):
 
     lower_CI_trans = coef_trans - np.abs(students_t * se_trans)
     upper_CI_trans = coef_trans + np.abs(students_t * se_trans)
-    return zip(lower_CI_trans, upper_CI_trans)
+    p_values_trans = 2 * scipy.stats.norm.cdf(-np.abs(coef_trans / se_trans))
+    return zip(lower_CI_trans, upper_CI_trans), p_values_trans
 
 
 def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
@@ -92,9 +93,11 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     p_mesor, p_amplitude, p_acrophase = cosinor_fit.pvalues
 
     # Confidence Intervals for parameters
-    ci_mesor, ci_amplitude, ci_acrophase = get_confidence_intervals_cosinor(
-        mesor, amplitude, acrophase, cosinor_fit
-    )
+    (ci_mesor, ci_amplitude, ci_acrophase), (
+        p_mesor,
+        p_amplitude,
+        p_acrophase,
+    ) = get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit)
 
     # 1 - statistics of Goodness Of Fit according to Cornelissen (eqs (14) - (15))
     RSS = cosinor_fit.ssr
@@ -338,20 +341,7 @@ def fit_circadianess_fit_per_bee(
     return data
 
 
-def fit_cosinor_fit_per_bee(
-    day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None
-):
-    if bee_age == -1 or bee_age == 0:
-        return {None: dict(error="Bee is already dead or new to colony..")}
-
-    # fetch velocities
-    velocities = bb_behavior.db.trajectory.get_bee_velocities(
-        bee_id, from_dt, to_dt, confidence_threshold=0.1, max_mm_per_second=15.0
-    )
-
-    if velocities is None:
-        return {None: dict(error="No velocities could be fetched..")}
-
+def fit_cosinor_fit_per_bee(day=None, bee_id=None, velocities=None, bee_age=None):
     # get right data types
     day = datetime.datetime.fromisoformat(day)
     assert day.tzinfo == datetime.timezone.utc

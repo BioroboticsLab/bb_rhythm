@@ -7,6 +7,7 @@ from statsmodels.tsa.stattools import adfuller
 import numpy as np
 import pandas as pd
 
+
 def calculate_regression(
     df,
     x_column,
@@ -178,7 +179,7 @@ def time_lagged_cross_correlation(p, q):
     q = q.tonumpy()
     p = (p - np.mean(p)) / (np.std(p) * len(p))
     q = (q - np.mean(q)) / (np.std(q))
-    c = scipy.signal.correlate(p, q, 'full')
+    c = scipy.signal.correlate(p, q, "full")
     return c
 
 
@@ -189,13 +190,22 @@ def apply_time_lagged_cross_correlation_to_df(df, y_variable="velocity"):
         return pd.DataFrame({None: "%s non-stationary" % y_variable})
     cross_correlation_df = pd.DataFrame()
     for column in df.columns.remove(y_variable):
-        df_subset = df[[y_variable, column]].replace(np.inf, np.nan).replace(-np.inf, np.nan).dropna()
+        df_subset = (
+            df[[y_variable, column]]
+            .replace(np.inf, np.nan)
+            .replace(-np.inf, np.nan)
+            .dropna()
+        )
         p_value = adfuller(df_subset[column])[1]
         if p_value > 0.05:
             continue
         else:
-            cross_correlation_df["ccr"] = time_lagged_cross_correlation(df_subset[y_variable], df_subset[column])
-            lags = scipy.signal.correlation_lags(len(df_subset[y_variable]), len(df_subset[column]))
+            cross_correlation_df["ccr"] = time_lagged_cross_correlation(
+                df_subset[y_variable], df_subset[column]
+            )
+            lags = scipy.signal.correlation_lags(
+                len(df_subset[y_variable]), len(df_subset[column])
+            )
             cross_correlation_df["lags"] = lags
-            cross_correlation_df["parameter"] = len(lags)*[column]
+            cross_correlation_df["parameter"] = len(lags) * [column]
     return cross_correlation_df

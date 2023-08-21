@@ -105,7 +105,9 @@ class Binning:
         return df
 
 
-def fetch_velocities_from_remote_or_db(bee_id, dt_after, dt_before, velocites_path, max_mm_per_second=15.0):
+def fetch_velocities_from_remote_or_db(
+    bee_id, dt_after, dt_before, velocites_path, max_mm_per_second=15.0
+):
     if type(bee_id) == np.int64:
         bee_id = bee_id.item()
     try:
