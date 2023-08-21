@@ -685,29 +685,6 @@ def extract_parameters_from_random_sampled_interactions(
 #     return vel_change, percent_change
 
 
-def fetch_velocities_from_remote_or_db(bee_id, dt_after, dt_before, velocites_path):
-    if type(bee_id) == np.int64:
-        bee_id = bee_id.item()
-    try:
-        # fetch velocities
-        if velocites_path is not None:
-            velocities = pd.read_pickle(
-                os.path.join(velocites_path, "%d.pickle" % bee_id)
-            )
-        else:
-            assert FileNotFoundError
-    except FileNotFoundError:
-        # fetch velocities
-        velocities = bb_behavior.db.trajectory.get_bee_velocities(
-            bee_id,
-            dt_before,
-            dt_after,
-            confidence_threshold=0.1,
-            max_mm_per_second=15.0,
-        )
-    return velocities
-
-
 def get_intermediate_time_windows_df(df, dt_from, dt_to):
     intermediate_df = pd.DataFrame(
         columns=["bee_id", "non_interaction_start", "non_interaction_end"]
