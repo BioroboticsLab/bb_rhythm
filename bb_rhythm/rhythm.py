@@ -11,6 +11,7 @@ import bb_circadian.lombscargle
 import bb_behavior.db
 from statsmodels.regression.linear_model import RegressionResults
 import statsmodels.stats.stattools
+from statsmodels.tsa.stattools import adfuller
 
 from . import time, plotting
 
