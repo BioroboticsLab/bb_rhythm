@@ -90,8 +90,6 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # p for amplitude
     # z test
-    p_mesor, p_amplitude, p_acrophase = cosinor_fit.pvalues
-
     # Confidence Intervals for parameters
     (ci_mesor, ci_amplitude, ci_acrophase), (
         p_mesor,
