@@ -30,10 +30,17 @@ def fit_cosinor(X, Y):
 
 def derive_cosine_parameter_from_cosinor(cosinor_fit):
     mesor = cosinor_fit.params[0]
-    amplitude = (cosinor_fit.params.beta_x**2 + cosinor_fit.params.gamma_x**2) ** (
-        1 / 2
+    amplitude = (cosinor_fit.params.beta_x ** 2 + cosinor_fit.params.gamma_x ** 2) ** (
+            1 / 2
     )
-    acrophase = np.arctan(-cosinor_fit.params.beta_x / cosinor_fit.params.gamma_x)
+    if (cosinor_fit.params.beta_x > 0) and (cosinor_fit.params.gamma_x > 0):
+        acrophase = 0 + (-1 * np.arctan(np.abs(cosinor_fit.params.gamma_x / cosinor_fit.params.beta_x)))
+    elif (cosinor_fit.params.beta_x > 0) and (cosinor_fit.params.gamma_x < 0):
+        acrophase = 2 * (-1) * np.pi + (1 * np.arctan(np.abs(cosinor_fit.params.gamma_x / cosinor_fit.params.beta_x)))
+    elif (cosinor_fit.params.beta_x < 0) and (cosinor_fit.params.gamma_x > 0):
+        acrophase = np.pi * (-1) + (1 * np.arctan(np.abs(cosinor_fit.params.gamma_x / cosinor_fit.params.beta_x)))
+    else:
+        acrophase = np.pi * (-1) + (-1 * np.arctan(np.abs(cosinor_fit.params.gamma_x / cosinor_fit.params.beta_x)))
     return mesor, amplitude, acrophase
 
 
@@ -44,10 +51,10 @@ def get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit):
 
     beta_r = cosinor_fit.params.beta_x
     beta_s = cosinor_fit.params.gamma_x
-    a_r = (beta_r**2 + beta_s**2) ** (-0.5) * beta_r
-    a_s = (beta_r**2 + beta_s**2) ** (-0.5) * beta_s
-    b_r = (1 / (1 + (beta_s**2 / beta_r**2))) * (-beta_s / beta_r**2)
-    b_s = (1 / (1 + (beta_s**2 / beta_r**2))) * (1 / beta_r)
+    a_r = (beta_r ** 2 + beta_s ** 2) ** (-0.5) * beta_r
+    a_s = (beta_r ** 2 + beta_s ** 2) ** (-0.5) * beta_s
+    b_r = (1 / (1 + (beta_s ** 2 / beta_r ** 2))) * (-beta_s / beta_r ** 2)
+    b_s = (1 / (1 + (beta_s ** 2 / beta_r ** 2))) * (1 / beta_r)
 
     jac = np.array([[a_r, a_s], [b_r, b_s]])
     cov_trans = np.dot(np.dot(jac, indVmat), np.transpose(jac))
@@ -90,8 +97,6 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # p for amplitude
     # z test
-    p_mesor, p_amplitude, p_acrophase = cosinor_fit.pvalues
-
     # Confidence Intervals for parameters
     (ci_mesor, ci_amplitude, ci_acrophase), (
         p_mesor,
@@ -121,9 +126,9 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # 3 - F = (N - 2p - 2)r² / (1-r²) > F -> variance is homogeneous
     F_hom = (
-        cosinor_fit.nobs
-        * cosinor_fit.fittedvalues.sum() ** 2
-        / (1 - cosinor_fit.fittedvalues.sum() ** 2)
+            cosinor_fit.nobs
+            * cosinor_fit.fittedvalues.sum() ** 2
+            / (1 - cosinor_fit.fittedvalues.sum() ** 2)
     )
     p_hom = 1 - scipy.stats.f.cdf(F_hom, 1, cosinor_fit.nobs)
 
@@ -180,7 +185,7 @@ def fit_circadian_cosine(X, Y, phase=0):
     Returns:
         Dictionary with all information about a fit.
     """
-    amplitude = 3 * np.std(Y) / (2**0.5)
+    amplitude = 3 * np.std(Y) / (2 ** 0.5)
     phase = phase
     offset = np.mean(Y)
     initial_parameters = [amplitude, phase, offset]
@@ -220,7 +225,7 @@ def fit_circadian_cosine(X, Y, phase=0):
 
 
 def collect_fit_data_for_bee_date(
-    bee_id, date, velocities=None, delta=datetime.timedelta(days=1, hours=12), phase=0
+        bee_id, date, velocities=None, delta=datetime.timedelta(days=1, hours=12), phase=0
 ):
     if "offset" in velocities.columns:
         ts = velocities.offset.values
@@ -257,7 +262,7 @@ def add_velocity_day_night_information(bee_date_data, velocities):
 
 
 def fit_circadianess_fit_per_bee_phase_variation(
-    day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None, phases=None
+        day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None, phases=None
 ):
     if bee_age == -1 or bee_age == 0:
         return {None: dict(error="Bee is already dead or new to colony..")}
@@ -301,7 +306,7 @@ def fit_circadianess_fit_per_bee_phase_variation(
 
 
 def fit_circadianess_fit_per_bee(
-    day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None
+        day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None
 ):
     if bee_age == -1 or bee_age == 0:
         return {None: dict(error="Bee is already dead or new to colony..")}
@@ -410,7 +415,7 @@ def create_mean_count_circadianess_per_day_df(circadianess_df, column="age_bins"
     # filter counts lower than 0.05 counts out
     circadianess_df = circadianess_df[
         circadianess_df["count"] > circadianess_df["count"].quantile(q=0.05)
-    ]
+        ]
     return circadianess_df
 
 
@@ -422,7 +427,7 @@ def calculate_well_tested_circadianess(circadianess_df):
         np.float64
     )
     circadianess_df["well_tested_circadianess"] = (
-        circadianess_df.is_circadian * circadianess_df.is_good_fit
+            circadianess_df.is_circadian * circadianess_df.is_good_fit
     )
 
 
@@ -445,8 +450,8 @@ def create_phase_plt_age_df(circadianess_df, phase_shift=12):
     return pd.DataFrame(
         {
             "phase_plt": (
-                (time.map_pi_time_interval_to_24h(circadianess_df["phase"]))
-                + phase_shift
+                    (time.map_pi_time_interval_to_24h(circadianess_df["phase"]))
+                    + phase_shift
             ).tolist(),
             "Age [days]": circadianess_df["Age [days]"].tolist(),
             "age": circadianess_df["age"].tolist(),
@@ -462,8 +467,8 @@ def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time_reference=None)
     if time_reference:
         time_shift = circadianess_df["time_reference"]
     circadianess_df["phase_plt"] = (
-        time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
-    ) % 24
+                                           time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
+                                   ) % 24
     return circadianess_df
 
 
@@ -535,16 +540,16 @@ def get_normalized_velocities(dt_from, dt_to):
         dt_from - datetime.timedelta(hours=6), dt_to + datetime.timedelta(hours=6)
     )[["velocity", "datetime"]]
     velocities_mean["velocity_normalized"] = (
-        velocities_mean.velocity.values
-        - velocities_mean.set_index("datetime")
-        .rolling("12h")
-        .mean()
-        .reset_index()["velocity"]
-        .values
+            velocities_mean.velocity.values
+            - velocities_mean.set_index("datetime")
+            .rolling("12h")
+            .mean()
+            .reset_index()["velocity"]
+            .values
     )
     return velocities_mean[
         (dt_from <= velocities_mean.datetime) & (velocities_mean.datetime < dt_to)
-    ].reset_index()
+        ].reset_index()
 
 
 def get_constant_fit(velocities):
@@ -555,7 +560,7 @@ def get_constant_fit(velocities):
             [
                 t.total_seconds()
                 for t in velocities.datetime
-                - pd.to_datetime(velocities.datetime.dt.date, utc=True)
+                         - pd.to_datetime(velocities.datetime.dt.date, utc=True)
             ]
         )
     v = velocities.velocity.values
