@@ -533,7 +533,7 @@ def get_non_focal_bee_mask(x, y, theta):
     b += [x + 14, y + 14]
     c += [x + 14, y + 14]
     d += [x + 14, y + 14]
-
+    
     points = np.array([a, b, c, d]).round().astype(int)
 
     # draw rectangle based on edge points
@@ -562,8 +562,15 @@ def compute_interaction_points(interaction_df, overlap_dict):
 
 def create_overlap_dict(interaction_df, focal_id):
     overlap_dict = {}
-    for index, row in interaction_df.iterrows():
-        overlap_dict[index] = get_bee_body_overlap(row, focal_id).ravel()
+    n_rows = len(interaction_df)
+    print(n_rows)
+    interaction_df = interaction_df.to_dict(orient='index')
+    
+    for index in interaction_df:
+        overlap_dict[index] = get_bee_body_overlap(interaction_df[index], focal_id).ravel()
+        if index % 1000 == 0:
+            print(index)
+    
     return overlap_dict
 
 
@@ -580,14 +587,15 @@ def get_bee_body_overlap(interaction_df_row, focal_id):
     focal_bee[10:19, 5:21] = 1
 
     # get coordinates of interacting bee
-    x, y, theta = interaction_df_row[
-            [f"focal{focal_id}_x_trans", f"focal{focal_id}_y_trans", f"focal{focal_id}_theta_trans"]
-        ]
+    x = interaction_df_row[f"focal{focal_id}_x_trans"]
+    y = interaction_df_row[f"focal{focal_id}_y_trans"]
+    theta = interaction_df_row[f"focal{focal_id}_theta_trans"]
+
     # create mask for non-focal bee
     non_focal_bee = get_non_focal_bee_mask(x, y, theta)
     # get overlap
     overlap = np.logical_and(focal_bee, non_focal_bee)
-    return overlap[10:19, 5:21]
+    return overlap[10:19, 5:21].astype(bool)
 
 
 def filter_combined_interaction_df_by_overlaps(combined_df, overlap_df):
