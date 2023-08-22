@@ -106,15 +106,15 @@ class Binning:
 
 
 def fetch_velocities_from_remote_or_db(
-    bee_id, dt_after, dt_before, velocites_path, max_mm_per_second=15.0
+    bee_id, dt_after, dt_before, velocities_path, max_mm_per_second=15.0
 ):
     if type(bee_id) == np.int64:
         bee_id = bee_id.item()
     try:
         # fetch velocities
-        if velocites_path is not None:
+        if velocities_path is not None:
             velocities = pd.read_pickle(
-                os.path.join(velocites_path, "%d.pickle" % bee_id)
+                os.path.join(velocities_path, "%d.pickle" % bee_id)
             )
             velocities.velocity[velocities.velocity > max_mm_per_second] = np.nan
         else:
