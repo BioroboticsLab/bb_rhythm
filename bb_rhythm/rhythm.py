@@ -348,7 +348,7 @@ def fit_circadianess_fit_per_bee(
 
 def fit_cosinor_fit_per_bee(day=None, bee_id=None, velocities=None, bee_age=None):
     # get right data types
-    day = datetime.datetime.fromisoformat(day)
+    day = datetime.datetime.fromisoformat(day.isoformat())
     assert day.tzinfo == datetime.timezone.utc
     day = day.replace(tzinfo=pytz.UTC)
 
