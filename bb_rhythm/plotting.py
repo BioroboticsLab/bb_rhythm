@@ -683,6 +683,9 @@ def plot_bins_velocity_focal_non_focal(
     bin_metric="equal_bin_size",
     n_bins=6,
     change_type="vel_change_bee_focal",
+    agg_func=np.median,
+    fig_title_agg_func="Median",
+    fig_label_bin_metric="Circadian power",
 ):
     # add bins
     if bin_metric:
@@ -694,7 +697,7 @@ def plot_bins_velocity_focal_non_focal(
     plot_pivot = (
         combined_df[[group_type1, group_type2, change_type]]
         .groupby([group_type1, group_type2])
-        .median()
+        .agg_func()
         .unstack(level=-1)
     )
 
@@ -702,12 +705,13 @@ def plot_bins_velocity_focal_non_focal(
     rcParams.update({"figure.autolayout": True})
     fig, axs = plt.subplots(1, 1, figsize=(20, 20))
     sns.heatmap(plot_pivot, annot=True, cmap="rocket", robust=True, ax=axs)
-    axs.invert_yaxis()
-    axs.set_title("Median velocity change of focal bee")
+    # axs.invert_yaxis()
+    axs.set_title("%s velocity change of focal bee" % fig_title_agg_func)
     axs.set_xticklabels(sorted(combined_df.bins_bee_focal.unique()))
     axs.set_yticklabels(sorted(combined_df.bins_bee_focal.unique()), rotation=0)
     axs.set(
-        xlabel="Circadian power of focal bee", ylabel="Circadian power of non-focal bee"
+        xlabel="%s of focal bee" % fig_label_bin_metric,
+        ylabel="%s of non-focal bee" % fig_label_bin_metric,
     )
     plt.savefig(plot_path)
 
@@ -738,3 +742,30 @@ def prepare_interaction_df_for_plotting(interaction_df, relative_change_clean=Fa
         interaction_df, to_be_cleaned_columns
     )
     return interaction_df
+
+
+def plot_p_values_per_bin_from_test(
+    test_result_dict,
+    ax=None,
+    n_bins=6,
+    fig_label_bin_metric="Circadian power",
+    plot_path=None,
+):
+    if not ax:
+        fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    p_values = np.array(
+        [value.p_value for key, value in zip(test_result_dict)]
+    ).reshape((n_bins, n_bins))
+    sns.heatmap(data=p_values, ax=ax, annotation=True, cmap="rocket")
+    ax.set_title("P-values")
+    x_labels = [key[0] for key, value in zip(test_result_dict)]
+    y_labels = [key[1] for key, value in zip(test_result_dict)]
+    ax.set_xticklabels(x_labels)
+    ax.set_yticklabels(y_labels, rotation=0)
+    ax.set(
+        xlabel="%s of focal bee" % fig_label_bin_metric,
+        ylabel="%s of non-focal bee" % fig_label_bin_metric,
+    )
+    if plot_path:
+        plt.savefig(plot_path)
+    return ax

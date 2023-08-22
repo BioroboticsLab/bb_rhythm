@@ -298,8 +298,12 @@ def apply_transformation(interaction_df):
     transformed_coords_focal1 = transformed_coords_focal1.apply(round)
 
     # append columns to original vel_change_matrix_df
-    interaction_df[["focal0_x_trans", "focal0_y_trans", "focal0_theta_trans"]] = transformed_coords_focal0
-    interaction_df[["focal1_x_trans", "focal1_y_trans", "focal1_theta_trans"]] = transformed_coords_focal1
+    interaction_df[
+        ["focal0_x_trans", "focal0_y_trans", "focal0_theta_trans"]
+    ] = transformed_coords_focal0
+    interaction_df[
+        ["focal1_x_trans", "focal1_y_trans", "focal1_theta_trans"]
+    ] = transformed_coords_focal1
 
     return interaction_df
 
