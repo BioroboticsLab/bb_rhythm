@@ -21,8 +21,8 @@ def fit_cosinor(X, Y):
     data["x"] = X
     data["y"] = Y
     frequency = 2.0 * np.pi * 1 / 60 / 60 / 24
-    data["beta_x"] = np.sin((data.x / (24 * 60 * 60)) * 2.0 * np.pi)
-    data["gamma_x"] = np.cos((data.x / (24 * 60 * 60)) * 2.0 * np.pi)
+    data["beta_x"] = np.cos((data.x / (24 * 60 * 60)) * 2.0 * np.pi)
+    data["gamma_x"] = np.sin((data.x / (24 * 60 * 60)) * 2.0 * np.pi)
     trigonometric_regression_model = smf.ols("y ~ beta_x + gamma_x", data)
     fit: RegressionResults = trigonometric_regression_model.fit()
     return fit
@@ -33,14 +33,26 @@ def derive_cosine_parameter_from_cosinor(cosinor_fit):
     amplitude = (cosinor_fit.params.beta_x ** 2 + cosinor_fit.params.gamma_x ** 2) ** (
             1 / 2
     )
-    if (cosinor_fit.params.beta_x > 0) and (cosinor_fit.params.gamma_x > 0):
-        acrophase = 0 + (-1 * np.arctan(np.abs(cosinor_fit.params.gamma_x / cosinor_fit.params.beta_x)))
-    elif (cosinor_fit.params.beta_x > 0) and (cosinor_fit.params.gamma_x < 0):
-        acrophase = 2 * (-1) * np.pi + (1 * np.arctan(np.abs(cosinor_fit.params.gamma_x / cosinor_fit.params.beta_x)))
-    elif (cosinor_fit.params.beta_x < 0) and (cosinor_fit.params.gamma_x > 0):
-        acrophase = np.pi * (-1) + (1 * np.arctan(np.abs(cosinor_fit.params.gamma_x / cosinor_fit.params.beta_x)))
-    else:
-        acrophase = np.pi * (-1) + (-1 * np.arctan(np.abs(cosinor_fit.params.gamma_x / cosinor_fit.params.beta_x)))
+    # checking sign of beta and gamma and calculate phase accordingly
+    # derived by https://rdrr.io/cran/card/src/R/cosinor-fit.R
+    sb = np.sign(cosinor_fit.params.beta_x)
+    sg = np.sign(cosinor_fit.params.gamma_x)
+    theta = np.arctan(np.abs(cosinor_fit.params.gamma_x / cosinor_fit.params.beta_x))
+    if ((sb == 1) | (sb == 0)) & (sg == 1):  # both +
+        acrophase = - theta
+    elif (sb == -1) & ((sg == 1) | (sg == 0)):  # - and +
+        acrophase = theta - np.pi
+    elif ((sb == -1) | (sb == 0)) & (sg == -1):  # - and -
+        acrophase = -theta - np.pi
+    else:  # (sb == 1 & (sg == -1 | sg == 0)) # + and -
+        acrophase = theta - (2 * np.pi)
+
+    # shift phase to first time interval
+    acrophase %= (2 * np.pi)
+    if acrophase > np.pi:
+        acrophase -= (2 * np.pi)
+    elif acrophase < - np.pi:
+        acrophase += (2 * np.pi)
     return mesor, amplitude, acrophase
 
 
@@ -109,8 +121,6 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     X_periodic = np.round_(X % period, 2)
     X_unique = np.unique(X_periodic)
     m = len(X_unique)
-    print(m )
-    print(cosinor_fit.nobs)
     SSPE = 0
     for x in X_unique:
         Y_i_avg = np.mean(Y[X_periodic == x])
