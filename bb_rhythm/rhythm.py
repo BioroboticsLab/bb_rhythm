@@ -109,6 +109,8 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     X_periodic = np.round_(X % period, 2)
     X_unique = np.unique(X_periodic)
     m = len(X_unique)
+    print(m )
+    print(cosinor_fit.nobs)
     SSPE = 0
     for x in X_unique:
         Y_i_avg = np.mean(Y[X_periodic == x])
