@@ -116,6 +116,8 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     SSLOF = RSS - SSPE
 
     # statistics of Goodness Of Fit according to Cornelissen (eqs (14) - (15))
+    print(m)
+    print(cosinor_fit.nobs)
     F = (SSLOF / (m - 3)) / (SSPE / (cosinor_fit.nobs - m))
     p_reject = 1 - scipy.stats.f.cdf(F, m - 3, cosinor_fit.nobs - m)
 
