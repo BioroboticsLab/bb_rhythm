@@ -16,13 +16,13 @@ from statsmodels.tsa.stattools import adfuller
 from . import time, plotting
 
 
-def fit_cosinor(X, Y):
+def fit_cosinor(X, Y, period):
     data = pd.DataFrame()
     data["x"] = X
     data["y"] = Y
-    frequency = 2.0 * np.pi * 1 / 60 / 60 / 24
-    data["beta_x"] = np.cos((data.x / (24 * 60 * 60)) * 2.0 * np.pi)
-    data["gamma_x"] = np.sin((data.x / (24 * 60 * 60)) * 2.0 * np.pi)
+    frequency = 2.0 * np.pi * 1 / period
+    data["beta_x"] = np.cos((data.x / period) * 2.0 * np.pi)
+    data["gamma_x"] = np.sin((data.x / period) * 2.0 * np.pi)
     trigonometric_regression_model = smf.ols("y ~ beta_x + gamma_x", data)
     fit: RegressionResults = trigonometric_regression_model.fit()
     return fit
@@ -94,7 +94,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     X, Y = timeseries, velocities
 
     # make linear regression with least squares for cosinor fit
-    cosinor_fit = fit_cosinor(X, Y)
+    cosinor_fit = fit_cosinor(X, Y, period)
 
     # get parameter from model
     mesor, amplitude, acrophase = derive_cosine_parameter_from_cosinor(cosinor_fit)
@@ -128,8 +128,6 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     SSLOF = RSS - SSPE
 
     # statistics of Goodness Of Fit according to Cornelissen (eqs (14) - (15))
-    print(m)
-    print(cosinor_fit.nobs)
     F = (SSLOF / (m - 3)) / (SSPE / (cosinor_fit.nobs - m))
     p_reject = 1 - scipy.stats.f.cdf(F, m - 3, cosinor_fit.nobs - m)
 
@@ -180,8 +178,8 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
 
 # This is copied and modified from bb_circadian.lombscargle
-def circadian_cosine(x, amplitude, phase, offset):
-    frequency = 2.0 * np.pi * 1 / 60 / 60 / 24
+def circadian_cosine(x, amplitude, phase, offset, period=24 * 60 * 60):
+    frequency = 2.0 * np.pi * 1 / period
     return np.cos(x * frequency - phase) * amplitude + offset
 
 
