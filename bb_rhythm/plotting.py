@@ -8,6 +8,7 @@ import numpy as np
 import numpy.ma as ma
 import datetime
 from scipy.ndimage import gaussian_filter1d
+from skimage import filters
 
 from . import utils
 from . import rhythm
@@ -1214,3 +1215,71 @@ def plot_circadian_fit(
     plt.title(title)
     if plot_path:
         plt.savefig(plot_path)
+
+
+def nan_tolerant_gaussian_filtering(U, sigma):
+    V=U.copy()
+    V[np.isnan(U)]=0
+    VV=filters.gaussian(V,sigma=sigma)
+
+    W=0*U.copy()+1
+    W[np.isnan(U)]=0
+    WW=filters.gaussian(W,sigma=sigma)
+
+    return VV/WW
+
+def plot_fit_params_per_loc(df, variable, xrange, yrange, label=None, cmap=None,
+                      vmin=None, vmax=None, center=None, robust=True, smooth=False,
+                      cm=' [cm]', transparency=False, alpha_var='n_samples',
+                      ticks=None, save_to='phase_per_pos.png'):
+
+    df[['x_grid', 'y_grid']] = df[['x_grid', 'y_grid']].astype(int)
+
+    fig, axs = plt.subplots(1,2,figsize=(14,5))
+    cbar_ax = fig.add_axes([1, .23, .03, .6])
+
+    for side in [0,1]:
+        df_grid = pd.pivot(data=df[df['side'] == side], index='y_grid',
+                           columns='x_grid', values=variable)
+
+        # set x and y range
+        df_grid = df_grid.loc[yrange[0]:yrange[1],xrange[0]:xrange[1]]
+
+        alpha_grid = None
+
+        if transparency:
+            alpha_grid = pd.pivot(data=df[df['side'] == side], index='y_grid',
+                                  columns='x_grid', values=alpha_var).fillna(0)
+            alpha_grid = alpha_grid.loc[yrange[0]:yrange[1],xrange[0]:xrange[1]]
+
+            # scale alpha values between zero and one
+            alpha_grid = alpha_grid.to_numpy()
+            alpha_grid /= np.max(alpha_grid)
+
+        if smooth:
+            grid = df_grid.to_numpy()
+            grid = nan_tolerant_gaussian_filtering(grid, sigma=1)
+            df_grid.loc[:,:] = grid
+        # df_grid = df_grid.interpolate(method='linear')
+        # df_grid = df_grid.fillna(method='bfill')
+
+        if not label:
+          label = variable
+
+        sns.heatmap(df_grid, vmin=vmin, vmax=vmax, ax=axs[side],
+                    xticklabels=5, yticklabels=5, center=center,
+                    cmap=cmap, cbar=side, cbar_kws={'label':label, 'ticks':ticks},
+                    cbar_ax=cbar_ax, robust=robust, alpha=alpha_grid)
+
+        axs[side].set_xlabel('x position' + cm)
+        ylabel = 'y position' + cm if side == 0 else ''
+        title = 'View on side %d' % side
+        axs[side].set_ylabel(ylabel)
+        axs[side].set_title(title)
+
+    plt.tight_layout()
+    
+    if save_to:
+        plt.savefig(save_to)
+        
+    plt.show()
