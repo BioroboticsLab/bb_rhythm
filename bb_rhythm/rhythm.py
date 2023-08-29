@@ -602,3 +602,34 @@ def get_constant_fit(velocities):
     assert v.shape[0] == ts.shape[0]
     constant_fit = np.polynomial.polynomial.Polynomial.fit(ts, v, deg=0)
     return constant_fit
+
+
+def get_raw_phase_df(file, velocities_path):
+    bee_id = int(file[:-7])
+    velocities = pd.read_pickle(
+        os.path.join(velocities_path, file)
+    )
+    velocities["datetime"] = velocities["datetime"].dt.round("2min")
+    velocities = velocities.groupby(["datetime"])["velocity"].mean().reset_index()
+    velocities["date"] = velocities.datetime.dt.date
+    time_lst = []
+    velocity_lst = []
+    age_lst = []
+    df_max_vel = pd.DataFrame(columns=["bee_id", "datetime", "age", "velocity"])
+    for name, group in velocities.groupby(["date"]):
+        time_lst.append(group.datetime.iloc[group.velocity.argmax()])
+        velocity_lst.append(group.velocity.max())
+        age_lst.append((bee_id, name))
+    age_lst = [int(age) for _, _, age in bb_behavior.db.metadata.get_bee_ages(age_lst)]
+    df_max_vel = pd.concat(
+        [df_max_vel,
+         pd.DataFrame(
+             {"bee_id": len(age_lst) * [bee_id],
+              "datetime": time_lst,
+              "age": age_lst,
+              "velocity": velocity_lst
+              }
+         )
+         ]
+    )
+    return df_max_vel
