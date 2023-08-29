@@ -71,6 +71,8 @@ class Binning:
                             label = "0%d+" % int(b.left)
                 else:
                     label = bin_labels[i]
+                    print(b)
+                    print(label)
                 self.bin_labels[b] = label
                 i += 1
 

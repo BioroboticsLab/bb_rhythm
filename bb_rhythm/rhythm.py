@@ -16,13 +16,13 @@ from statsmodels.tsa.stattools import adfuller
 from . import time, plotting
 
 
-def fit_cosinor(X, Y):
+def fit_cosinor(X, Y, period=24 * 60 * 60):
     data = pd.DataFrame()
     data["x"] = X
     data["y"] = Y
-    frequency = 2.0 * np.pi * 1 / 60 / 60 / 24
-    data["beta_x"] = np.cos((data.x / (24 * 60 * 60)) * 2.0 * np.pi)
-    data["gamma_x"] = np.sin((data.x / (24 * 60 * 60)) * 2.0 * np.pi)
+    frequency = 2.0 * np.pi * 1 / period
+    data["beta_x"] = np.cos((data.x / period) * 2.0 * np.pi)
+    data["gamma_x"] = np.sin((data.x / period) * 2.0 * np.pi)
     trigonometric_regression_model = smf.ols("y ~ beta_x + gamma_x", data)
     fit: RegressionResults = trigonometric_regression_model.fit()
     return fit
@@ -94,7 +94,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     X, Y = timeseries, velocities
 
     # make linear regression with least squares for cosinor fit
-    cosinor_fit = fit_cosinor(X, Y)
+    cosinor_fit = fit_cosinor(X, Y, period=period)
 
     # get parameter from model
     mesor, amplitude, acrophase = derive_cosine_parameter_from_cosinor(cosinor_fit)
@@ -150,9 +150,6 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     # durbine watson statistic
     dw = statsmodels.stats.stattools.durbin_watson(cosinor_fit.resid, axis=0)
 
-    # test for stationarity
-    p_adfuller = adfuller(Y)[1]
-
     # runs test
     p_runs = statsmodels.sandbox.stats.runs.runstest_2samp(cosinor_fit.resid[cosinor_fit.resid >= 0], cosinor_fit.resid[cosinor_fit.resid < 0])[1]
 
@@ -176,15 +173,16 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
         "p_ks": p_ks,
         "p_hom": p_hom,
         "dw": dw,
-        "p_adfuller": p_adfuller,
         "p_runs": p_runs,
+        "RSS": RSS,
+        "SSPE": SSPE
     }
     return data
 
 
 # This is copied and modified from bb_circadian.lombscargle
-def circadian_cosine(x, amplitude, phase, offset):
-    frequency = 2.0 * np.pi * 1 / 60 / 60 / 24
+def circadian_cosine(x, amplitude, phase, offset, period=24 * 60 * 60):
+    frequency = 2.0 * np.pi * 1 / period
     return np.cos(x * frequency - phase) * amplitude + offset
 
 
@@ -450,7 +448,7 @@ def calculate_well_tested_circadianess(circadianess_df):
 def calculate_well_tested_circadianess_cosinor(circadianess_df):
     circadianess_df["is_good_fit"] = (
             (circadianess_df.p_reject > 0.05) &
-            #(circadianess_df.p_ks < 0.05) &
+            (circadianess_df.p_ks < 0.05) &
             (circadianess_df.p_hom > 0.05) &
             (circadianess_df.ad_fuller < 0.05) &
             (circadianess_df.dw > 0.5)).astype(
@@ -462,6 +460,7 @@ def calculate_well_tested_circadianess_cosinor(circadianess_df):
     circadianess_df["well_tested_circadianess"] = (
             circadianess_df.is_circadian * circadianess_df.is_good_fit
     )
+
 
 def extract_fit_parameters(circadianess_df):
     # extract parameters (amplitude, phase, offset) from fit
@@ -491,7 +490,7 @@ def create_phase_plt_age_df(circadianess_df, phase_shift=12):
     )
 
 
-def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time_reference=None):
+def add_phase_plt_to_df_cosine_fit(circadianess_df, fit_type="cosine", time_reference=None):
     if fit_type == "cosine":
         time_shift = 12
     else:
@@ -506,6 +505,7 @@ def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time_reference=None)
 def add_phase_plt_to_df_cosinor(circadianess_df, period=24):
     circadianess_df["phase_plt"] = ((- period * circadianess_df["phase"] / (2 * np.pi)) + 12)  % 24
     return circadianess_df
+
 
 def create_phase_per_date_df(circadianess_df):
     circadianess_df_plt = plotting.apply_three_group_age_map_for_plotting_phase(
