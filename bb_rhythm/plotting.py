@@ -278,7 +278,7 @@ def set_fig_props_circadianess_per_age_plot(fig):
     )
 
 
-def plot_raincloudplot(circadianess_df, ax, x="age_bins", hue_norm=None):
+def plot_raincloudplot(circadianess_df, ax, x="age_bins", hue_norm=None, order=None):
     # Create violin plots without mini-boxplots inside.
     sns.violinplot(
         data=circadianess_df,
@@ -335,7 +335,7 @@ def plot_raincloudplot(circadianess_df, ax, x="age_bins", hue_norm=None):
 
 
 def plot_violin_swarm_plot(
-    circadianess_df, ax, x="age_bins", size_norm=None, date_ann=False, count_ann=False
+    circadianess_df, ax, x="age_bins", size_norm=None, date_ann=False, count_ann=False, order=None
 ):
     # get coordinates from swarm plot
     sns.swarmplot(data=circadianess_df, x=x, y="mean", ax=ax, size=7.0)
@@ -372,7 +372,6 @@ def plot_violin_swarm_plot(
             palette="viridis",
             size_norm=size_norm,
             ax=ax,
-            order=order,
         )
     else:
         sns.scatterplot(
@@ -382,7 +381,6 @@ def plot_violin_swarm_plot(
             size="count",
             size_norm=size_norm,
             ax=ax,
-            order=order,
         )
 
     # annotate number of counts
@@ -417,20 +415,23 @@ def plot_circadianess_per_age_group(
     age_map=False,
     bin_max_n=None,
     bin_labels=None,
+    age_bins_n=None,
     bin_parameter="age",
     bin_name="Age [days]",
+    remove_none=True,
 ):
     # calculate well tested circadianess
-    rhythm.calculate_well_tested_circadianess(circadianess_df)
+    rhythm.calculate_well_tested_circadianess_cosinor(circadianess_df)
 
     # add human-readable age bins to df
     binning = utils.Binning(bin_name=bin_name, bin_parameter=bin_parameter)
-    binning.add_bins_to_df(
-        time_age_velocity_df,
+    circadianess_df = binning.add_bins_to_df(
+        circadianess_df,
         n_bins=age_bins_n,
         step_size=age_map_step_size,
         bin_max_n=bin_max_n,
-        age_bins=age_bins,
+        remove_none=remove_none,
+        bins=age_bins,
         bin_labels=bin_labels,
     )
 
@@ -445,7 +446,7 @@ def plot_circadianess_per_age_group(
         )
 
     # Create dataframe with aggregated mean and count of well tested circadianess per day
-    circadianess_df = rhythm.create_mean_count_circadianess_per_day_df(circadianess_df)
+    circadianess_df = rhythm.create_mean_count_circadianess_per_day_df(circadianess_df, column=binning.bin_name)
 
     # get count norm for shared legend
     min_count = circadianess_df["count"].min()
@@ -859,8 +860,8 @@ def plot_phase_per_age_group(
     )
 
     # map time interval of [-pi, pi] to 24h
-    circadianess_df = rhythm.add_phase_plt_to_df(
-        circadianess_df, fit_type=fit_type, time_reference=time_reference
+    circadianess_df = rhythm.add_phase_plt_to_df_cosinor(
+        circadianess_df,
     )
 
     # plot

@@ -48,9 +48,16 @@ class Binning:
         :return:
         """
         self.bin_labels = {}
+        bins_unique = self.bins.unique()
+        self.bins.replace({None: np.nan}, inplace=True)
+        if np.nan in bins_unique:
+            if self.remove_none:
+                self.bin_labels[np.nan] = np.nan
+            else:
+                self.bin_labels[np.nan] = "Nan"
+        bins_unique = bins_unique.dropna()
         i = 0
-        for b in self.bins.unique():
-            if (b is not None) and (b is not np.nan):
+        for b in sorted(bins_unique):
                 if bin_labels is None:
                     if not "age" in self.bin_parameter:
                         label = "(%s, %s]" % (
@@ -66,11 +73,6 @@ class Binning:
                     label = bin_labels[i]
                 self.bin_labels[b] = label
                 i += 1
-            else:
-                if self.remove_none:
-                    self.bin_labels[b] = np.nan
-                else:
-                    self.bin_labels[b] = "Nan"
 
     def add_bins_to_df(
         self,

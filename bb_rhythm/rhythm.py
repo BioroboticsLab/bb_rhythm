@@ -128,15 +128,14 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     SSLOF = RSS - SSPE
 
     # statistics of Goodness Of Fit according to Cornelissen (eqs (14) - (15))
-    print(m)
-    print(cosinor_fit.nobs)
     F = (SSLOF / (m - 3)) / (SSPE / (cosinor_fit.nobs - m))
     p_reject = 1 - scipy.stats.f.cdf(F, m - 3, cosinor_fit.nobs - m)
 
-    # 2 - chi_square test for goodness of fit -> residuals are normally distributed
-    chi_square_test_statistic, chi_p_value = scipy.stats.chisquare(
-        Y, cosinor_fit.fittedvalues
-    )
+    # 2 - kolgomorov-smirnov test for residuals are normally distributed
+    resid_distribution = scipy.stats.norm.fit(cosinor_fit.resid)
+    p_ks = scipy.stats.kstest(
+        cosinor_fit.resid, cdf=scipy.stats.norm(*resid_distribution).cdf
+    ).pvalue
 
     # 3 - F = (N - 2p - 2)r² / (1-r²) > F -> variance is homogeneous
     F_hom = (
@@ -153,6 +152,9 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # test for stationarity
     p_adfuller = adfuller(Y)[1]
+
+    # runs test
+    p_runs = statsmodels.sandbox.stats.runs.runstest_2samp(cosinor_fit.resid[cosinor_fit.resid >= 0], cosinor_fit.resid[cosinor_fit.resid < 0])[1]
 
     # r_squared
     r_squared, r_squared_adj = cosinor_fit.rsquared, cosinor_fit.rsquared_adj
@@ -171,10 +173,11 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
         "p_reject": p_reject,
         "r_squared": r_squared,
         "r_squared_adj": r_squared_adj,
-        "chi_p_value": chi_p_value,
+        "p_ks": p_ks,
         "p_hom": p_hom,
         "dw": dw,
         "p_adfuller": p_adfuller,
+        "p_runs": p_runs,
     }
     return data
 
@@ -444,6 +447,21 @@ def calculate_well_tested_circadianess(circadianess_df):
             circadianess_df.is_circadian * circadianess_df.is_good_fit
     )
 
+def calculate_well_tested_circadianess_cosinor(circadianess_df):
+    circadianess_df["is_good_fit"] = (
+            (circadianess_df.p_reject > 0.05) &
+            #(circadianess_df.p_ks < 0.05) &
+            (circadianess_df.p_hom > 0.05) &
+            (circadianess_df.ad_fuller < 0.05) &
+            (circadianess_df.dw > 0.5)).astype(
+        np.float64
+    )
+    circadianess_df["is_circadian"] = ((circadianess_df.p_value < 0.05) & (circadianess_df.amplitude > 0)).astype(
+        np.float64
+    )
+    circadianess_df["well_tested_circadianess"] = (
+            circadianess_df.is_circadian * circadianess_df.is_good_fit
+    )
 
 def extract_fit_parameters(circadianess_df):
     # extract parameters (amplitude, phase, offset) from fit
@@ -485,6 +503,9 @@ def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time_reference=None)
                                    ) % 24
     return circadianess_df
 
+def add_phase_plt_to_df_cosinor(circadianess_df, period=24):
+    circadianess_df["phase_plt"] = ((- period * circadianess_df["phase"] / (2 * np.pi)) + 12)  % 24
+    return circadianess_df
 
 def create_phase_per_date_df(circadianess_df):
     circadianess_df_plt = plotting.apply_three_group_age_map_for_plotting_phase(
