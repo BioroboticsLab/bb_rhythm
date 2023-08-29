@@ -448,7 +448,7 @@ def calculate_well_tested_circadianess(circadianess_df):
 def calculate_well_tested_circadianess_cosinor(circadianess_df):
     circadianess_df["is_good_fit"] = (
             (circadianess_df.p_reject > 0.05) &
-            (circadianess_df.p_ks < 0.05) &
+            #(circadianess_df.p_ks < 0.05) &
             (circadianess_df.p_hom > 0.05) &
             (circadianess_df.ad_fuller < 0.05) &
             (circadianess_df.dw > 0.5)).astype(
