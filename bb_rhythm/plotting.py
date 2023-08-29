@@ -419,18 +419,20 @@ def plot_circadianess_per_age_group(
     bin_labels=None,
     bin_parameter="age",
     bin_name="Age [days]",
+    remove_none=True,
 ):
     # calculate well tested circadianess
     rhythm.calculate_well_tested_circadianess(circadianess_df)
 
     # add human-readable age bins to df
     binning = utils.Binning(bin_name=bin_name, bin_parameter=bin_parameter)
-    binning.add_bins_to_df(
+    time_age_velocity_df = binning.add_bins_to_df(
         time_age_velocity_df,
         n_bins=age_bins_n,
         step_size=age_map_step_size,
         bin_max_n=bin_max_n,
-        age_bins=age_bins,
+        remove_none=remove_none,
+        bins=age_bins,
         bin_labels=bin_labels,
     )
 
@@ -859,8 +861,8 @@ def plot_phase_per_age_group(
     )
 
     # map time interval of [-pi, pi] to 24h
-    circadianess_df = rhythm.add_phase_plt_to_df(
-        circadianess_df, fit_type=fit_type, time_reference=time_reference
+    circadianess_df = rhythm.add_phase_plt_to_df_cosinor(
+        circadianess_df
     )
 
     # plot

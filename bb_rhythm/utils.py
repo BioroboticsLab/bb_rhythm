@@ -49,7 +49,7 @@ class Binning:
         """
         self.bin_labels = {}
         i = 0
-        for b in self.bins.unique():
+        for b in [self.bins[i] for i in sorted(np.unique(self.bins, return_index=True)[1])]: #self.bins.unique()
             if (b is not None) and (b is not np.nan):
                 if bin_labels is None:
                     if not "age" in self.bin_parameter:
@@ -64,6 +64,8 @@ class Binning:
                             label = "0%d+" % int(b.left)
                 else:
                     label = bin_labels[i]
+                    print(b)
+                    print(label)
                 self.bin_labels[b] = label
                 i += 1
             else:
