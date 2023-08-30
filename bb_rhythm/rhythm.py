@@ -16,7 +16,7 @@ from statsmodels.tsa.stattools import adfuller
 from . import time, plotting
 
 
-def fit_cosinor(X, Y, period):
+def fit_cosinor(X, Y, period=24 * 60 * 60):
     data = pd.DataFrame()
     data["x"] = X
     data["y"] = Y
@@ -94,7 +94,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     X, Y = timeseries, velocities
 
     # make linear regression with least squares for cosinor fit
-    cosinor_fit = fit_cosinor(X, Y, period)
+    cosinor_fit = fit_cosinor(X, Y, period=period)
 
     # get parameter from model
     mesor, amplitude, acrophase = derive_cosine_parameter_from_cosinor(cosinor_fit)
@@ -131,10 +131,11 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     F = (SSLOF / (m - 3)) / (SSPE / (cosinor_fit.nobs - m))
     p_reject = 1 - scipy.stats.f.cdf(F, m - 3, cosinor_fit.nobs - m)
 
-    # 2 - chi_square test for goodness of fit -> residuals are normally distributed
-    chi_square_test_statistic, chi_p_value = scipy.stats.chisquare(
-        Y, cosinor_fit.fittedvalues
-    )
+    # 2 - kolgomorov-smirnov test for residuals are normally distributed
+    resid_distribution = scipy.stats.norm.fit(cosinor_fit.resid)
+    p_ks = scipy.stats.kstest(
+        cosinor_fit.resid, cdf=scipy.stats.norm(*resid_distribution).cdf
+    ).pvalue
 
     # 3 - F = (N - 2p - 2)r² / (1-r²) > F -> variance is homogeneous
     F_hom = (
@@ -149,8 +150,8 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     # durbine watson statistic
     dw = statsmodels.stats.stattools.durbin_watson(cosinor_fit.resid, axis=0)
 
-    # test for stationarity
-    p_adfuller = adfuller(Y)[1]
+    # runs test
+    p_runs = statsmodels.sandbox.stats.runs.runstest_2samp(cosinor_fit.resid[cosinor_fit.resid >= 0], cosinor_fit.resid[cosinor_fit.resid < 0])[1]
 
     # r_squared
     r_squared, r_squared_adj = cosinor_fit.rsquared, cosinor_fit.rsquared_adj
@@ -169,10 +170,12 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
         "p_reject": p_reject,
         "r_squared": r_squared,
         "r_squared_adj": r_squared_adj,
-        "chi_p_value": chi_p_value,
+        "p_ks": p_ks,
         "p_hom": p_hom,
         "dw": dw,
-        "p_adfuller": p_adfuller,
+        "p_runs": p_runs,
+        "RSS": RSS,
+        "SSPE": SSPE
     }
     return data
 
@@ -442,6 +445,22 @@ def calculate_well_tested_circadianess(circadianess_df):
             circadianess_df.is_circadian * circadianess_df.is_good_fit
     )
 
+def calculate_well_tested_circadianess_cosinor(circadianess_df):
+    circadianess_df["is_good_fit"] = (
+            (circadianess_df.p_reject > 0.05) &
+            (circadianess_df.p_ks < 0.05) &
+            (circadianess_df.p_hom > 0.05) &
+            (circadianess_df.ad_fuller < 0.05) &
+            (circadianess_df.dw > 0.5)).astype(
+        np.float64
+    )
+    circadianess_df["is_circadian"] = ((circadianess_df.p_value < 0.05) & (circadianess_df.amplitude > 0)).astype(
+        np.float64
+    )
+    circadianess_df["well_tested_circadianess"] = (
+            circadianess_df.is_circadian * circadianess_df.is_good_fit
+    )
+
 
 def extract_fit_parameters(circadianess_df):
     # extract parameters (amplitude, phase, offset) from fit
@@ -471,7 +490,7 @@ def create_phase_plt_age_df(circadianess_df, phase_shift=12):
     )
 
 
-def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time_reference=None):
+def add_phase_plt_to_df_cosine_fit(circadianess_df, fit_type="cosine", time_reference=None):
     if fit_type == "cosine":
         time_shift = 12
     else:
@@ -481,6 +500,10 @@ def add_phase_plt_to_df(circadianess_df, fit_type="cosine", time_reference=None)
     circadianess_df["phase_plt"] = (
                                            time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
                                    ) % 24
+    return circadianess_df
+
+def add_phase_plt_to_df_cosinor(circadianess_df, period=24):
+    circadianess_df["phase_plt"] = ((- period * circadianess_df["phase"] / (2 * np.pi)) + 12)  % 24
     return circadianess_df
 
 
@@ -579,3 +602,34 @@ def get_constant_fit(velocities):
     assert v.shape[0] == ts.shape[0]
     constant_fit = np.polynomial.polynomial.Polynomial.fit(ts, v, deg=0)
     return constant_fit
+
+
+def get_raw_phase_df(file, velocities_path):
+    bee_id = int(file[:-7])
+    velocities = pd.read_pickle(
+        os.path.join(velocities_path, file)
+    )
+    velocities["datetime"] = velocities["datetime"].dt.round("2min")
+    velocities = velocities.groupby(["datetime"])["velocity"].mean().reset_index()
+    velocities["date"] = velocities.datetime.dt.date
+    time_lst = []
+    velocity_lst = []
+    age_lst = []
+    df_max_vel = pd.DataFrame(columns=["bee_id", "datetime", "age", "velocity"])
+    for name, group in velocities.groupby(["date"]):
+        time_lst.append(group.datetime.iloc[group.velocity.argmax()])
+        velocity_lst.append(group.velocity.max())
+        age_lst.append((bee_id, name))
+    age_lst = [int(age) for _, _, age in bb_behavior.db.metadata.get_bee_ages(age_lst)]
+    df_max_vel = pd.concat(
+        [df_max_vel,
+         pd.DataFrame(
+             {"bee_id": len(age_lst) * [bee_id],
+              "datetime": time_lst,
+              "age": age_lst,
+              "velocity": velocity_lst
+              }
+         )
+         ]
+    )
+    return df_max_vel

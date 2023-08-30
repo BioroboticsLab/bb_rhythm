@@ -8,6 +8,7 @@ from wetterdienst import Settings
 import bb_behavior.db
 from functools import reduce
 import pandas as pd
+from . import statistics
 
 
 def get_weather_parameter_df(

@@ -198,7 +198,17 @@ def apply_time_lagged_cross_correlation_to_df(df, y_variable="velocity"):
         )
         p_value = adfuller(df_subset[column])[1]
         if p_value > 0.05:
-            continue
+            if column is not "altitude":
+                continue
+            else:
+                cross_correlation_df["ccr"] = time_lagged_cross_correlation(
+                    df_subset[y_variable], df_subset[column]
+                )
+                lags = scipy.signal.correlation_lags(
+                    len(df_subset[y_variable]), len(df_subset[column])
+                )
+                cross_correlation_df["lags"] = lags
+                cross_correlation_df["parameter"] = len(lags) * [column]
         else:
             cross_correlation_df["ccr"] = time_lagged_cross_correlation(
                 df_subset[y_variable], df_subset[column]
