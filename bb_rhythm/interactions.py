@@ -789,33 +789,34 @@ def create_row_non_interaction_df(bee_id, non_interaction_start, non_interaction
     )
 
 
+def merge_with_fit_data(interactions_df, circadian_df, bee_id):
+    
+    interactions_df.rename(columns={"bee_id%d" % bee_id: "bee_id"})
+    interactions_df = pd.merge(
+        interactions_df, circadian_df, how="left", on=["date", "bee_id"]
+    )
+
+    interactions_df.rename(columns={"phase" : "phase_bee%d" % bee_id,
+                                    "r_squared" : "circadianess_bee%d" % bee_id,
+                                    "amplitude": "amplitude_bee%d" % bee_id,
+                                    "bee_id": "bee_id%d" % bee_id})
+    
+    return interactions_df
+    
+    
 def add_circadianess_to_interaction_df(interactions_df, circadian_df):
     interactions_df["date"] = [
         interaction.replace(hour=0, minute=0, second=0, microsecond=0)
         + datetime.timedelta(hours=12)
         for interaction in interactions_df["interaction_start"]
     ]
-    interactions_df["bee_id"] = interactions_df["bee_id0"]
-    interactions_df_merged = pd.merge(
-        interactions_df, circadian_df, how="left", on=["date", "bee_id"]
-    )
-    interactions_df_merged["age_bee0"] = interactions_df_merged["age"]
-    interactions_df_merged["circadianess_bee0"] = interactions_df_merged["r_squared"]
-    interactions_df_merged["amplitude_bee0"] = interactions_df_merged["amplitude"]
-    interactions_df_merged.drop(
-        columns=["age", "r_squared", "bee_id", "amplitude"], inplace=True
-    )
-    interactions_df_merged["bee_id"] = interactions_df_merged["bee_id1"]
-    interactions_df_merged = pd.merge(
-        interactions_df_merged, circadian_df, how="left", on=["date", "bee_id"]
-    )
-    interactions_df_merged["age_bee1"] = interactions_df_merged["age"]
-    interactions_df_merged["circadianess_bee1"] = interactions_df_merged["r_squared"]
-    interactions_df_merged["amplitude_bee1"] = interactions_df_merged["amplitude"]
-    interactions_df_merged.drop(
-        columns=["age", "r_squared", "bee_id", "date", "amplitude"], inplace=True
-    )
-    return interactions_df_merged
+    
+    interactions_df = merge_with_fit_data(interactions_df, circadian_df, bee_id=0)
+    interactions_df = merge_with_fit_data(interactions_df, circadian_df, bee_id=1)
+    
+    interactions_df.drop(columns=["date"], inplace=True)
+    
+    return interactions_df
 
 
 def get_start_velocity(df):
