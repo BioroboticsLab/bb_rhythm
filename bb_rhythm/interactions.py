@@ -363,6 +363,19 @@ def concat_bee_id(combined_df, df):
     combined_df["bee_id_focal"] = pd.concat([df["bee_id0"], df["bee_id1"]])
     combined_df["bee_id_non_focal"] = pd.concat([df["bee_id1"], df["bee_id0"]])
 
+def concat_phase(combined_df, df):
+    combined_df["phase_focal"] = pd.concat([df["phase_bee0"], df["phase_bee1"]])
+    combined_df["phase_non_focal"] = pd.concat([df["phase_bee1"], df["phase_bee0"]])
+
+def concat_is_bursty(combined_df, df):
+    combined_df["is_bursty_focal"] = pd.concat([df["is_bursty_bee0"], df["is_bursty_bee1"]])
+    combined_df["is_bursty_non_focal"] = pd.concat([df["is_bursty_bee1"], df["is_bursty_bee0"]])
+
+
+def concat_is_forager(combined_df, df):
+    combined_df["is_forager_focal"] = pd.concat([df["is_forager_bee0"], df["is_forager_bee1"]])
+    combined_df["is_forager_non_focal"] = pd.concat([df["is_forager_bee1"], df["is_forager_bee0"]])
+
 
 def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
     combined_df = pd.DataFrame(
@@ -380,6 +393,12 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "bee_id_non_focal",
             "interaction_start",
             "interaction_end",
+            "is_bursty_focal",
+            "is_bursty_non_focal",
+            "is_forager_focal",
+            "is_forager_non_focal",
+            "phase_focal",
+            "phase_non_focal"
         ]
     )
     concat_circ(combined_df, df)
@@ -389,6 +408,9 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
     concat_position(combined_df, df, trans=trans)
     concat_bee_id(combined_df, df)
     concat_interaction_times(combined_df, df)
+    concat_is_bursty(combined_df, df)
+    concat_is_forager(combined_df, df)
+    concat_phase(combined_df, df)
     return combined_df
 
 
@@ -819,10 +841,10 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
 
 
 def get_start_velocity(df):
-    df["velocity_start_bee_focal"] = (
+    df["velocity_start_focal"] = (
         df["vel_change_bee_focal"] * 100 / df["rel_change_bee_focal"]
     )
-    df["velocity_start_bee_non_focal"] = (
+    df["velocity_start_non_focal"] = (
         df["vel_change_bee_non_focal"] * 100 / df["rel_change_bee_non_focal"]
     )
 

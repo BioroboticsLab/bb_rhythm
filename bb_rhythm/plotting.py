@@ -643,7 +643,7 @@ def plot_bins_velocity_focal_non_focal(
     fig_title_agg_func="Median",
 ):
     # add bins
-    binning = Binning(bin_name=group_type1, bin_parameter=bin_parameter1)
+    binning = utils.Binning(bin_name=group_type1, bin_parameter=bin_parameter1)
     combined_df = binning.add_bins_to_df(
         combined_df,
         n_bins=n_bins,
@@ -652,7 +652,7 @@ def plot_bins_velocity_focal_non_focal(
         remove_none=remove_none,
         bin_labels=bin_labels,
     )
-    binning = Binning(bin_name=group_type2, bin_parameter=bin_parameter2)
+    binning = utils.Binning(bin_name=group_type2, bin_parameter=bin_parameter2)
     combined_df = binning.add_bins_to_df(
         combined_df,
         n_bins=n_bins,
