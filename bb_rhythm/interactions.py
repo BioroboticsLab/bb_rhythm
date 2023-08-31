@@ -842,7 +842,7 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
     return interactions_df
 
 def add_feature_to_interaction_df(interactions_df, feature_df, features):
-    interactions_df['date'] = interactions_df['interaction_start'].dt.date
+    interactions_df['date'] = interactions_df['interaction_start'].dt.date.astype('datetime64[ns]')
     
     interactions_df = add_features(interactions_df, feature_df, bee_id=0, features=features)
     interactions_df = add_features(interactions_df, feature_df, bee_id=1, features=features)
