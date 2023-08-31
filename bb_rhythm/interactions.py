@@ -811,17 +811,16 @@ def create_row_non_interaction_df(bee_id, non_interaction_start, non_interaction
     )
 
 
-def merge_with_fit_data(interactions_df, circadian_df, bee_id):
+def add_features(interactions_df, feature_df, bee_id, features):
     
-    interactions_df.rename(columns={"bee_id%d" % bee_id: "bee_id"})
+    interactions_df.rename(columns={"bee_id%d" % bee_id: "bee_id"}, inplace=True)
     interactions_df = pd.merge(
-        interactions_df, circadian_df, how="left", on=["date", "bee_id"]
-    )
-
-    interactions_df.rename(columns={"phase" : "phase_bee%d" % bee_id,
-                                    "r_squared" : "circadianess_bee%d" % bee_id,
-                                    "amplitude": "amplitude_bee%d" % bee_id,
-                                    "bee_id": "bee_id%d" % bee_id})
+        interactions_df, feature_df, how="left", on=["date", "bee_id"])
+    
+    rename_dict = {feature: feature+"_bee%d" % bee_id for feature in features}
+    rename_dict["bee_id"] = "bee_id%d" % bee_id
+    
+    interactions_df.rename(columns=rename_dict, inplace=True)
     
     return interactions_df
     
@@ -833,13 +832,24 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
         for interaction in interactions_df["interaction_start"]
     ]
     
-    interactions_df = merge_with_fit_data(interactions_df, circadian_df, bee_id=0)
-    interactions_df = merge_with_fit_data(interactions_df, circadian_df, bee_id=1)
+    fit_features = ["phase", "r_squared", "amplitude"]
+    
+    interactions_df = add_features(interactions_df, circadian_df, bee_id=0, features=fit_features)
+    interactions_df = add_features(interactions_df, circadian_df, bee_id=1, features=fit_features)
     
     interactions_df.drop(columns=["date"], inplace=True)
     
     return interactions_df
 
+def add_feature_to_interaction_df(interactions_df, feature_df, features):
+    interactions_df['date'] = interactions_df['interaction_start'].dt.date
+    
+    interactions_df = add_features(interactions_df, feature_df, bee_id=0, features=features)
+    interactions_df = add_features(interactions_df, feature_df, bee_id=1, features=features)
+    
+    interactions_df.drop(columns=["date"], inplace=True)
+    
+    return interactions_df
 
 def get_start_velocity(df):
     df["velocity_start_focal"] = (
