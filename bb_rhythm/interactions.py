@@ -373,13 +373,12 @@ def concat_is_bursty(combined_df, df):
 
 
 def concat_is_forager(combined_df, df):
-    combined_df["is_forager_focal"] = pd.concat([df["is_forager_bee0"], df["is_forager_bee1"]])
-    combined_df["is_forager_non_focal"] = pd.concat([df["is_forager_bee1"], df["is_forager_bee0"]])
+    combined_df["is_foraging_focal"] = pd.concat([df["is_foraging_bee0"], df["is_foraging_bee1"]])
+    combined_df["is_foraging_non_focal"] = pd.concat([df["is_foraging_bee1"], df["is_foraging_bee0"]])
 
 
 def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
-    combined_df = pd.DataFrame(
-        columns=[
+    column_ls = [
             "circadianess_focal",
             "circadianess_non_focal",
             "age_focal",
@@ -395,11 +394,16 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "interaction_end",
             "is_bursty_focal",
             "is_bursty_non_focal",
-            "is_forager_focal",
-            "is_forager_non_focal",
             "phase_focal",
             "phase_non_focal"
         ]
+    if "is_foraging_bee0" in df.columns:
+        column_ls.append(
+            "is_foraging_focal",
+            "is_foraging_non_focal",
+        )
+    combined_df = pd.DataFrame(
+        columns=column_ls
     )
     concat_circ(combined_df, df)
     concat_amplitude(combined_df, df)
@@ -409,7 +413,8 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
     concat_bee_id(combined_df, df)
     concat_interaction_times(combined_df, df)
     concat_is_bursty(combined_df, df)
-    concat_is_forager(combined_df, df)
+    if "is_foraging_bee0" in df.columns:
+        concat_is_forager(combined_df, df)
     concat_phase(combined_df, df)
     return combined_df
 

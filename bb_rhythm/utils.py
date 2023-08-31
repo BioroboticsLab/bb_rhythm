@@ -24,7 +24,9 @@ class Binning:
         """
         Creates self.bins according step size and bin number limit.
         """
-        if bins is not None:
+        if self.is_categorcial:
+            self.bins = df[self.bin_parameter]
+        if (bins is not None) and (not self.is_categorcial):
             bins.append(self.bin_max_value)
             self.bins = pd.cut(
                 x=df[self.bin_parameter], bins=pd.IntervalIndex.from_breaks(bins)
@@ -55,24 +57,24 @@ class Binning:
                 self.bin_labels[np.nan] = np.nan
             else:
                 self.bin_labels[np.nan] = "Nan"
-        bins_unique = bins_unique.dropna()
+        bins_unique = bins_unique[~np.isnan(bins_unique)]
         i = 0
         for b in sorted(bins_unique):
-                if bin_labels is None:
-                    if not "age" in self.bin_parameter:
-                        label = "(%s, %s]" % (
-                            str(b.left.round(2)),
-                            str(b.right.round(2)),
-                        )
-                    else:
-                        if b.left > 9:
-                            label = "%d+" % int(b.left)
-                        else:
-                            label = "0%d+" % int(b.left)
+            if bin_labels is None:
+                if not "age" in self.bin_parameter:
+                    label = "(%s, %s]" % (
+                        str(b.left.round(2)),
+                        str(b.right.round(2)),
+                    )
                 else:
-                    label = bin_labels[i]
-                self.bin_labels[b] = label
-                i += 1
+                    if b.left > 9:
+                        label = "%d+" % int(b.left)
+                    else:
+                        label = "0%d+" % int(b.left)
+            else:
+                label = bin_labels[i]
+            self.bin_labels[b] = label
+            i += 1
 
     def add_bins_to_df(
         self,
@@ -85,21 +87,24 @@ class Binning:
         bin_labels=None,
     ):
         self.remove_none = remove_none
-        self.bin_max_value = df[self.bin_parameter].max()
-        # case if not custom
-        if self.bins is None:
-            self.bin_max_n = bin_max_n
-            self.step_size = step_size
-            # case step size given
-            if self.step_size:
-                self.bin_n = np.floor(self.bin_max_value / self.step_size)
-                # case step size and max bin given
-                if self.bin_max_n:
-                    if self.bin_max_n < self.bin_n:
-                        self.bin_n = self.bin_max_n
-            # case number of bins given
-            else:
-                self.bin_n = n_bins
+        if (df[self.bin_parameter].dtype == pd.Categorical) or (df[self.bin_parameter].dtype == bool):
+            self.is_categorcial = True
+        else:
+            self.bin_max_value = df[self.bin_parameter].max()
+            # case if not custom
+            if self.bins is None:
+                self.bin_max_n = bin_max_n
+                self.step_size = step_size
+                # case step size given
+                if self.step_size:
+                    self.bin_n = np.floor(self.bin_max_value / self.step_size)
+                    # case step size and max bin given
+                    if self.bin_max_n:
+                        if self.bin_max_n < self.bin_n:
+                            self.bin_n = self.bin_max_n
+                # case number of bins given
+                else:
+                    self.bin_n = n_bins
         self.create_bin(df=df, bins=bins)
         self.create_bin_labels(bin_labels)
         self.replace_bin_identifier_by_bin_map_identifier(df)
@@ -118,10 +123,12 @@ def fetch_velocities_from_remote_or_db(
             velocities = pd.read_pickle(
                 os.path.join(velocities_path, "%d.pickle" % bee_id)
             )
+            print(bee_id)
             velocities.velocity[velocities.velocity > max_mm_per_second] = np.nan
         else:
             assert FileNotFoundError
     except FileNotFoundError:
+        print(bee_id)
         # fetch velocities
         velocities = bb_behavior.db.trajectory.get_bee_velocities(
             bee_id,

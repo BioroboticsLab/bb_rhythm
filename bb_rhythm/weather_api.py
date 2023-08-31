@@ -1,13 +1,16 @@
 import datetime
-
 from wetterdienst.provider.dwd.observation import (
     DwdObservationRequest,
     DwdObservationResolution,
 )
 from wetterdienst import Settings
-import bb_behavior.db
 from functools import reduce
 import pandas as pd
+import numpy as np
+import pytz
+
+import bb_behavior.db
+
 from . import statistics
 
 
@@ -66,10 +69,12 @@ def combine_weather_velocity_dfs(velocity_df, weather_df):
     velocity_df.rename(columns={"datetime": "date"}, inplace=True)
     velocity_df.drop(columns=["time_passed"], inplace=True)
     velocity_df = velocity_df[
-        ~(pd.isnull(velocity_df.velocity) or pd.isinf(velocity_df.velocity))
+        ~(pd.isnull(velocity_df.velocity) |
+            np.isinf(velocity_df.velocity))
     ]
+    velocity_df["date"] = velocity_df.date.dt.round("10min")
     velocity_df = (
-        velocity_df.date.dt.round("10min")
+        velocity_df
         .groupby(["date"])["velocity"]
         .mean()
         .reset_index()
