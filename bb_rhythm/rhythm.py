@@ -132,10 +132,13 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     p_reject = 1 - scipy.stats.f.cdf(F, m - 3, cosinor_fit.nobs - m)
 
     # 2 - kolgomorov-smirnov test for residuals are normally distributed
-    resid_distribution = scipy.stats.norm.fit(cosinor_fit.resid)
-    p_ks = scipy.stats.kstest(
-        cosinor_fit.resid, cdf=scipy.stats.norm(*resid_distribution).cdf
-    ).pvalue
+    try:
+        resid_distribution = scipy.stats.norm.fit(cosinor_fit.resid.dropna())
+        p_ks = scipy.stats.kstest(
+            cosinor_fit.resid.dropna(), cdf=scipy.stats.norm(*resid_distribution).cdf
+        ).pvalue
+    except (TypeError, ValueError):
+        p_ks = np.nan
 
     # 3 - F = (N - 2p - 2)r² / (1-r²) > F -> variance is homogeneous
     F_hom = (

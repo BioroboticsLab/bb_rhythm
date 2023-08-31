@@ -627,10 +627,12 @@ def get_bin_distributions_as_histmap(
 
 def plot_bins_velocity_focal_non_focal(
     combined_df,
-    plot_path,
+    plot_path=None,
+    axs=None,
     bin_parameter2="circadianess_focal",
     bin_parameter1="circadianess_non_focal",
     n_bins=6,
+    bins=None,
     step_size=None,
     bin_max_n=None,
     remove_none=True,
@@ -641,6 +643,7 @@ def plot_bins_velocity_focal_non_focal(
     fig_label_bin_metric="Circadian power",
     agg_func="median",
     fig_title_agg_func="Median",
+    norm=None,
 ):
     # add bins
     binning = utils.Binning(bin_name=group_type1, bin_parameter=bin_parameter1)
@@ -651,6 +654,7 @@ def plot_bins_velocity_focal_non_focal(
         bin_max_n=bin_max_n,
         remove_none=remove_none,
         bin_labels=bin_labels,
+        bins=bins,
     )
     binning = utils.Binning(bin_name=group_type2, bin_parameter=bin_parameter2)
     combined_df = binning.add_bins_to_df(
@@ -660,6 +664,7 @@ def plot_bins_velocity_focal_non_focal(
         bin_max_n=bin_max_n,
         remove_none=remove_none,
         bin_labels=bin_labels,
+        bins=bins,
     )
 
     # create pivot for plotting
@@ -672,8 +677,9 @@ def plot_bins_velocity_focal_non_focal(
 
     # plot
     rcParams.update({"figure.autolayout": True})
-    fig, axs = plt.subplots(1, 1, figsize=(20, 20))
-    sns.heatmap(plot_pivot, annot=True, cmap="rocket", robust=True, ax=axs)
+    if axs is None:
+        fig, axs = plt.subplots(1, 1, figsize=(20, 20))
+    sns.heatmap(plot_pivot, annot=True, cmap="rocket", robust=True, norm=norm, ax=axs)
     axs.invert_yaxis()
     axs.set_title("%s velocity change of focal bee" % fig_title_agg_func)
     axs.set_xticklabels(sorted(combined_df.bins_focal.unique()))
@@ -682,7 +688,10 @@ def plot_bins_velocity_focal_non_focal(
         xlabel="%s of focal bee" % fig_label_bin_metric,
         ylabel="%s of non-focal bee" % fig_label_bin_metric,
     )
-    plt.savefig(plot_path)
+    if plot_path:
+        plt.savefig(plot_path)
+    else:
+        return axs
 
 
 def prepare_interaction_df_for_plotting(interaction_df, relative_change_clean=False):
