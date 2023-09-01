@@ -129,8 +129,7 @@ def create_ccr_df_per_bee_from_period(bee_id, dt_from, dt_to, velocity_weather_d
         cross_correlation_df["bee_id"] = len(cross_correlation_df) * [bee_id]
         cross_correlation_df["age"] = len(cross_correlation_df) * [bee_age]
         cross_correlations_dfs.append(cross_correlation_df)
-    if len(cross_correlations_dfs) > 0:
-        cc_df = pd.concat(cross_correlations_dfs)
-    else:
-        {None: "no  velocities could be fetched"}
+    if len(cross_correlations_dfs) == 0:
+        return {None: "No velocities could be fetched"}
+    cc_df = pd.concat(cross_correlations_dfs)
     return cc_df
