@@ -154,7 +154,10 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     dw = statsmodels.stats.stattools.durbin_watson(cosinor_fit.resid, axis=0)
 
     # runs test
-    p_runs = statsmodels.sandbox.stats.runs.runstest_2samp(cosinor_fit.resid[cosinor_fit.resid >= 0], cosinor_fit.resid[cosinor_fit.resid < 0])[1]
+    try:
+        p_runs = statsmodels.sandbox.stats.runs.runstest_2samp(cosinor_fit.resid[cosinor_fit.resid >= 0], cosinor_fit.resid[cosinor_fit.resid < 0])[1]
+    except (TypeError, ValueError):
+        p_runs = np.nan
 
     # r_squared
     r_squared, r_squared_adj = cosinor_fit.rsquared, cosinor_fit.rsquared_adj
