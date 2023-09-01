@@ -1,5 +1,4 @@
 import os
-
 import bb_behavior.db
 import numpy as np
 import pandas as pd
@@ -17,8 +16,10 @@ class Binning:
         self.remove_none = True
         self.is_categorical = None
 
+
     def replace_bin_identifier_by_bin_map_identifier(self, df):
         df[self.bin_name] = [self.bin_labels[item] for item in self.bins]
+
 
     def create_bin(self, df=None, bins=None):
         """
@@ -29,19 +30,20 @@ class Binning:
         if (bins is not None) and (not self.is_categorical):
             bins.append(self.bin_max_value)
             self.bins = pd.cut(
-                x=df[self.bin_parameter], bins=pd.IntervalIndex.from_breaks(bins)
+                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), bins=pd.IntervalIndex.from_breaks(bins)
             )
         if (self.step_size is None) and (self.bins is None):
-            self.bins = pd.qcut(x=df[self.bin_parameter], q=self.bin_n)
+            self.bins = pd.qcut(x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), q=self.bin_n)
         if (self.step_size is not None) and (self.bins is None):
             bins = []
             for i in range(int(self.bin_n)):
                 bins.append(i * self.step_size)
             self.bins = pd.cut(
-                x=df[self.bin_parameter], bins=pd.IntervalIndex.from_breaks(bins)
+                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), bins=pd.IntervalIndex.from_breaks(bins)
             )
         if self.bins is None:
             assert ValueError
+
 
     def create_bin_labels(self, bin_labels=None):
         """
@@ -56,7 +58,7 @@ class Binning:
                     self.bins.iloc[i] = np.nan
             except TypeError:
                 continue
-        #self.bins.replace({None: np.nan}, inplace=True)
+        # self.bins.replace({None: np.nan}, inplace=True)
         self.bin_labels = {}
         if (np.isnan(b) for b in bins_unique):
             if self.remove_none:
@@ -82,16 +84,17 @@ class Binning:
             self.bin_labels[b] = label
             i += 1
 
+
     def add_bins_to_df(
-        self,
-        df,
-        step_size=5,
-        n_bins=6,
-        bin_max_n=None,
-        remove_none=True,
-        bins=None,
-        bin_labels=None,
-        is_categorical=None
+            self,
+            df,
+            step_size=5,
+            n_bins=6,
+            bin_max_n=None,
+            remove_none=True,
+            bins=None,
+            bin_labels=None,
+            is_categorical=None
     ):
         self.remove_none = remove_none
         if is_categorical or (df[self.bin_parameter].dtype == pd.Categorical) or (df[self.bin_parameter].dtype == bool):
