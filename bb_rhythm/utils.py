@@ -4,7 +4,6 @@ import bb_behavior.db
 import numpy as np
 import pandas as pd
 
-
 class Binning:
     def __init__(self, bin_name, bin_parameter):
         self.bin_name = bin_name
@@ -16,6 +15,7 @@ class Binning:
         self.bins = None
         self.bin_max_value = None
         self.remove_none = True
+        self.is_categorical = None
 
     def replace_bin_identifier_by_bin_map_identifier(self, df):
         df[self.bin_name] = [self.bin_labels[item] for item in self.bins]
@@ -24,9 +24,9 @@ class Binning:
         """
         Creates self.bins according step size and bin number limit.
         """
-        if self.is_categorcial:
+        if self.is_categorical:
             self.bins = df[self.bin_parameter]
-        if (bins is not None) and (not self.is_categorcial):
+        if (bins is not None) and (not self.is_categorical):
             bins.append(self.bin_max_value)
             self.bins = pd.cut(
                 x=df[self.bin_parameter], bins=pd.IntervalIndex.from_breaks(bins)
@@ -49,15 +49,21 @@ class Binning:
 
         :return:
         """
-        self.bin_labels = {}
         bins_unique = self.bins.unique()
-        self.bins.replace({None: np.nan}, inplace=True)
-        if np.nan in bins_unique:
+        for i in range(len(self.bins)):
+            try:
+                if np.isnan(self.bins.iloc[i]):
+                    self.bins.iloc[i] = np.nan
+            except TypeError:
+                continue
+        #self.bins.replace({None: np.nan}, inplace=True)
+        self.bin_labels = {}
+        if (np.isnan(b) for b in bins_unique):
             if self.remove_none:
                 self.bin_labels[np.nan] = np.nan
             else:
                 self.bin_labels[np.nan] = "Nan"
-        bins_unique = bins_unique[~np.isnan(bins_unique)]
+        bins_unique = bins_unique[~pd.isna(bins_unique)]
         i = 0
         for b in sorted(bins_unique):
             if bin_labels is None:
@@ -85,10 +91,11 @@ class Binning:
         remove_none=True,
         bins=None,
         bin_labels=None,
+        is_categorical=None
     ):
         self.remove_none = remove_none
-        if (df[self.bin_parameter].dtype == pd.Categorical) or (df[self.bin_parameter].dtype == bool):
-            self.is_categorcial = True
+        if is_categorical or (df[self.bin_parameter].dtype == pd.Categorical) or (df[self.bin_parameter].dtype == bool):
+            self.is_categorical = True
         else:
             self.bin_max_value = df[self.bin_parameter].max()
             # case if not custom
@@ -110,7 +117,6 @@ class Binning:
         self.replace_bin_identifier_by_bin_map_identifier(df)
         df.dropna(subset=[self.bin_name], inplace=True)
         return df
-
 
 def fetch_velocities_from_remote_or_db(
     bee_id, dt_after, dt_before, velocities_path, max_mm_per_second=15.0
