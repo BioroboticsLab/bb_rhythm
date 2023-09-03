@@ -113,6 +113,7 @@ def create_ccr_df_per_bee_from_period(bee_id, dt_from, dt_to, velocity_weather_d
     )
     cross_correlations_dfs = []
     for current_dt in dates:
+        break
         bee_age = int(
             bb_behavior.db.metadata.get_bee_ages([(bee_id, current_dt.date())])[0][
                 2
@@ -121,10 +122,12 @@ def create_ccr_df_per_bee_from_period(bee_id, dt_from, dt_to, velocity_weather_d
         if bee_age < 1:
             continue
         velocity_weather_df_day = velocity_weather_df[
-            (velocity_weather_df.date >= (current_dt)) &
-            (velocity_weather_df.date < (current_dt + delta))
+            (velocity_weather_df.index >= (current_dt)) &
+            (velocity_weather_df.index < (current_dt + delta))
             ]
         cross_correlation_df = statistics.apply_time_lagged_cross_correlation_to_df(velocity_weather_df_day)
+        if cross_correlation_df is None:
+            continue
         cross_correlation_df["date"] = len(cross_correlation_df) * [current_dt]
         cross_correlation_df["bee_id"] = len(cross_correlation_df) * [bee_id]
         cross_correlation_df["age"] = len(cross_correlation_df) * [bee_age]
@@ -133,3 +136,6 @@ def create_ccr_df_per_bee_from_period(bee_id, dt_from, dt_to, velocity_weather_d
         return {None: "No velocities could be fetched"}
     cc_df = pd.concat(cross_correlations_dfs)
     return cc_df
+
+#TODO: how handle adfuller
+# drop long, lat

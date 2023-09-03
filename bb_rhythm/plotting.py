@@ -30,13 +30,17 @@ def plot_velocity_over_time_with_weather(
     imshow=False,
     image_path=None,
     y_lim=None,
+    axs=None,
 ):
-    # create figure
-    fig, axs = plt.subplots(
-        3, 1, figsize=(16, 10), sharex=True, gridspec_kw={"height_ratios": [8, 1, 1]}
-    )
-    fig.suptitle("Mean movement speed over time")
-    fig.tight_layout()
+    if axs is None:
+        # create figure
+        fig, axs = plt.subplots(
+            3, 1, figsize=(16, 10), sharex=True, gridspec_kw={"height_ratios": [8, 1, 1]}
+        )
+        fig.suptitle("Mean movement speed over time")
+        fig.tight_layout()
+    else:
+        axs[0].set_title("Mean movement speed over time")
 
     # plot velocities
     plot_velocity_per_age_group(
@@ -115,6 +119,7 @@ def plot_velocity_per_age_group(
     age_map=False,
     age_bins=None,
     age_map_step_size=5,
+    age_bins_n=None,
     bin_max_n=None,
     bin_labels=None,
     smoothing=False,
@@ -145,7 +150,7 @@ def plot_velocity_per_age_group(
             n_bins=age_bins_n,
             step_size=age_map_step_size,
             bin_max_n=bin_max_n,
-            age_bins=age_bins,
+            bins=age_bins,
             bin_labels=bin_labels,
         )
         sorted_by = binning.bin_name
@@ -231,7 +236,7 @@ def get_smoothed_velocities(sorted_by, time_age_velocity_df):
 
 
 def create_age_color_palette(age_map, sorted_by, time_age_velocity_df):
-    if age_map:
+    if age_map is not None:
         palette = sns.color_palette(
             "viridis", len(time_age_velocity_df[sorted_by].unique()) * 4
         )

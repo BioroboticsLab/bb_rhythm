@@ -175,8 +175,8 @@ def test_bin_normally_distributed(change_type, group, name, printing):
 
 
 def time_lagged_cross_correlation(p, q):
-    p = p.tonumpy()
-    q = q.tonumpy()
+    p = p.to_numpy()
+    q = q.to_numpy()
     p = (p - np.mean(p)) / (np.std(p) * len(p))
     q = (q - np.mean(q)) / (np.std(q))
     c = scipy.signal.correlate(p, q, "full")
@@ -187,17 +187,20 @@ def apply_time_lagged_cross_correlation_to_df(df, y_variable="velocity"):
     df.replace(np.inf, np.nan).replace(-np.inf, np.nan).dropna(inplace=True)
     p_value_velocity = adfuller(df[y_variable])[1]
     if p_value_velocity > 0.05:
-        return pd.DataFrame({None: "%s non-stationary" % y_variable})
+        return {None: ["%s non-stationary" % y_variable]}
     cross_correlation_df = pd.DataFrame()
-    for column in df.columns.remove(y_variable):
+    for column in df.drop(columns=[y_variable]).columns:
         df_subset = (
             df[[y_variable, column]]
             .replace(np.inf, np.nan)
             .replace(-np.inf, np.nan)
             .dropna()
         )
-        p_value = adfuller(df_subset[column])[1]
-        if p_value > 0.05:
+        try:
+            p_value = adfuller(df_subset[column])[1]
+        except ValueError:
+            p_value = np.nan
+        if p_value > 0.5:
             if column is not "altitude":
                 continue
             else:

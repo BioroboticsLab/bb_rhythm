@@ -132,12 +132,10 @@ def fetch_velocities_from_remote_or_db(
             velocities = pd.read_pickle(
                 os.path.join(velocities_path, "%d.pickle" % bee_id)
             )
-            print(bee_id)
             velocities.velocity[velocities.velocity > max_mm_per_second] = np.nan
         else:
             assert FileNotFoundError
     except FileNotFoundError:
-        print(bee_id)
         # fetch velocities
         velocities = bb_behavior.db.trajectory.get_bee_velocities(
             bee_id,
