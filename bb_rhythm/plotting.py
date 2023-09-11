@@ -688,7 +688,7 @@ def plot_bins_velocity_focal_non_focal(
     axs.invert_yaxis()
     axs.set_title("%s velocity change of focal bee" % fig_title_agg_func)
     axs.set_xticklabels(sorted(combined_df.bins_focal.unique()))
-    axs.set_yticklabels(sorted(combined_df.bins_focal.unique()), rotation=0)
+    axs.set_yticklabels(sorted(combined_df.bins_non_focal.unique()), rotation=0)
     axs.set(
         xlabel="%s of focal bee" % fig_label_bin_metric,
         ylabel="%s of non-focal bee" % fig_label_bin_metric,

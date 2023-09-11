@@ -38,6 +38,7 @@ class Binning:
             bins = []
             for i in range(int(self.bin_n)):
                 bins.append(i * self.step_size)
+            bins.append(self.bin_max_value)
             self.bins = pd.cut(
                 x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), bins=pd.IntervalIndex.from_breaks(bins)
             )
@@ -107,7 +108,7 @@ class Binning:
                 self.step_size = step_size
                 # case step size given
                 if self.step_size:
-                    self.bin_n = np.floor(self.bin_max_value / self.step_size)
+                    self.bin_n = np.ceil(self.bin_max_value / self.step_size)
                     # case step size and max bin given
                     if self.bin_max_n:
                         if self.bin_max_n < self.bin_n:
