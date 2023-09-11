@@ -187,7 +187,7 @@ def apply_time_lagged_cross_correlation_to_df(df, y_variable="velocity"):
     df.replace(np.inf, np.nan).replace(-np.inf, np.nan).dropna(inplace=True)
     p_value_velocity = adfuller(df[y_variable])[1]
     if p_value_velocity > 0.05:
-        return {None: ["%s non-stationary" % y_variable]}
+        return None
     cross_correlation_df = pd.DataFrame()
     for column in df.drop(columns=[y_variable]).columns:
         df_subset = (
