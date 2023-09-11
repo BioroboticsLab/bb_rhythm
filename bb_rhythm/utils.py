@@ -37,7 +37,9 @@ class Binning:
         if (self.step_size is not None) and (self.bins is None):
             bins = []
             for i in range(int(self.bin_n)):
+                print(i)
                 bins.append(i * self.step_size)
+                print(bins)
             self.bins = pd.cut(
                 x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), bins=pd.IntervalIndex.from_breaks(bins)
             )
@@ -108,15 +110,24 @@ class Binning:
                 # case step size given
                 if self.step_size:
                     self.bin_n = np.floor(self.bin_max_value / self.step_size)
+                    print(self.bin_n)
+                    print(self.bin_max_value)
+                    print(self.step_size)
+                    print(self.bin_max_n)
                     # case step size and max bin given
                     if self.bin_max_n:
                         if self.bin_max_n < self.bin_n:
                             self.bin_n = self.bin_max_n
+                    print(self.bin_n)
+                    print(self.bin_max_value)
+                    print(self.step_size)
+                    print(self.bin_max_n)
                 # case number of bins given
                 else:
                     self.bin_n = n_bins
         self.create_bin(df=df, bins=bins)
         self.create_bin_labels(bin_labels)
+        print(self.bin_labels)
         self.replace_bin_identifier_by_bin_map_identifier(df)
         df.dropna(subset=[self.bin_name], inplace=True)
         return df

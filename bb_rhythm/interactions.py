@@ -392,16 +392,20 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
             "bee_id_non_focal",
             "interaction_start",
             "interaction_end",
-            "is_bursty_focal",
-            "is_bursty_non_focal",
-            "phase_focal",
-            "phase_non_focal"
+            #"phase_focal",
+            #"phase_non_focal"
         ]
     if "is_foraging_bee0" in df.columns:
         column_ls.append(
             "is_foraging_focal",
+        )
+        column_ls.append(
             "is_foraging_non_focal",
         )
+        column_ls.append("is_bursty_focal",
+        )
+        column_ls.append("is_bursty_non_focal",
+                         )
     combined_df = pd.DataFrame(
         columns=column_ls
     )
@@ -412,10 +416,10 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
     concat_position(combined_df, df, trans=trans)
     concat_bee_id(combined_df, df)
     concat_interaction_times(combined_df, df)
-    concat_is_bursty(combined_df, df)
     if "is_foraging_bee0" in df.columns:
         concat_is_forager(combined_df, df)
-    concat_phase(combined_df, df)
+        concat_is_bursty(combined_df, df)
+    #concat_phase(combined_df, df)
     return combined_df
 
 

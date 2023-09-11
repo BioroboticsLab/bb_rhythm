@@ -185,40 +185,28 @@ def time_lagged_cross_correlation(p, q):
 
 def apply_time_lagged_cross_correlation_to_df(df, y_variable="velocity"):
     df.replace(np.inf, np.nan).replace(-np.inf, np.nan).dropna(inplace=True)
-    p_value_velocity = adfuller(df[y_variable])[1]
-    if p_value_velocity > 0.05:
-        return {None: ["%s non-stationary" % y_variable]}
+    if len(df) == 0:
+        print("df contains only nans: %s" % str(df))
+        return None
+    try:
+        p_value_velocity = adfuller(df[y_variable])[1]
+    except ValueError:
+        p_value_velocity = np.nan
     cross_correlation_df = pd.DataFrame()
     for column in df.drop(columns=[y_variable]).columns:
-        df_subset = (
-            df[[y_variable, column]]
-            .replace(np.inf, np.nan)
-            .replace(-np.inf, np.nan)
-            .dropna()
-        )
+        df_subset  = df[[column, y_variable]]
         try:
             p_value = adfuller(df_subset[column])[1]
         except ValueError:
             p_value = np.nan
-        if p_value > 0.5:
-            if column is not "altitude":
-                continue
-            else:
-                cross_correlation_df["ccr"] = time_lagged_cross_correlation(
-                    df_subset[y_variable], df_subset[column]
-                )
-                lags = scipy.signal.correlation_lags(
-                    len(df_subset[y_variable]), len(df_subset[column])
-                )
-                cross_correlation_df["lags"] = lags
-                cross_correlation_df["parameter"] = len(lags) * [column]
-        else:
-            cross_correlation_df["ccr"] = time_lagged_cross_correlation(
-                df_subset[y_variable], df_subset[column]
-            )
-            lags = scipy.signal.correlation_lags(
-                len(df_subset[y_variable]), len(df_subset[column])
-            )
-            cross_correlation_df["lags"] = lags
-            cross_correlation_df["parameter"] = len(lags) * [column]
+        cross_correlation_df["ccr"] = time_lagged_cross_correlation(
+            df_subset[y_variable], df_subset[column]
+        )
+        lags = scipy.signal.correlation_lags(
+            len(df_subset[y_variable]), len(df_subset[column])
+        )
+        cross_correlation_df["lags"] = lags
+        cross_correlation_df["parameter"] = len(lags) * [column]
+        cross_correlation_df["adfuller"] = p_value
+        cross_correlation_df["adfuller_v"] = p_value_velocity
     return cross_correlation_df
