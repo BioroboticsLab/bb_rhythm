@@ -85,21 +85,24 @@ def combine_weather_velocity_dfs(velocity_df, weather_df):
     )
     return velocity_weather_df
 
+def get_max_min_ccr_agg(x):
+    try:
+        columns = {"max_corr": x.ccr.max(),
+         "max_lag": x.lags.iloc[x.ccr.argmax()] * 10 / 60,
+         "min_corr": x.ccr.min(),
+         "min_lag": x.lags.iloc[x.ccr.argmin()] * 10 / 60,
+         }
+    except TypeError:
+        columns = {"max_corr": np.nan,
+         "max_lag": np.nan,
+         "min_corr": np.nan,
+         "min_lag": np.nan,
+         }
+    return pd.Series(columns, index=['max_corr', 'max_lag', 'min_corr', 'min_lag'])
+
 
 def create_min_max_ccr_df_per_bee(bee_id, cc_df):
-    df_ccf_ls = []
-    for parameter in cc_df.parameter.unique():
-        df_plot = cc_df[cc_df.parameter == parameter].groupby(["lags"]).agg("mean").reset_index()
-        for date in cc_df[cc_df.parameter == parameter].date.unique():
-            df_plot_day = cc_df[cc_df.parameter == parameter][cc_df[cc_df.parameter == parameter].date == date]
-            max_corr = df_plot_day.ccr.max()
-            max_leg = df_plot.lags.iloc[df_plot_day.ccr.argmax()] * 10 / 60
-            min_corr = df_plot_day.ccr.min()
-            min_leg = df_plot.lags.iloc[df_plot_day.ccr.argmin()] * 10 / 60
-            df_ccf_ls.append(
-                {"parameter": parameter, "max_corr": max_corr, "max_corr_time": max_leg, "min_corr": min_corr,
-                 "min_corr_time": min_leg, "date": date, "bee_id": bee_id, "age": cc_df["age"].iloc[0]})
-    df_corr = pd.DataFrame(df_ccf_ls)
+    df_corr = cc_df.groupby(["bee_id", "date", "age", "parameter"]).apply(get_max_min_ccr_agg).reset_index()
     return df_corr
 
 
