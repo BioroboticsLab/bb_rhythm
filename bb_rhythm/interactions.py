@@ -342,11 +342,11 @@ def concat_ages(combined_df, df):
 
 
 def concat_circ(combined_df, df):
-    combined_df["circadianess_focal"] = pd.concat(
-        [df["circadianess_bee0"], df["circadianess_bee1"]]
+    combined_df["r_squared_focal"] = pd.concat(
+        [df["r_squared_bee0"], df["r_squared_bee1"]]
     )
-    combined_df["circadianess_non_focal"] = pd.concat(
-        [df["circadianess_bee1"], df["circadianess_bee0"]]
+    combined_df["r_squared_non_focal"] = pd.concat(
+        [df["r_squared_bee1"], df["r_squared_bee0"]]
     )
 
 
@@ -588,19 +588,20 @@ def get_non_focal_bee_mask(x, y, theta):
 
 def compute_interaction_points(interaction_df, overlap_dict):
     # create empty matrix for interaction counts
-    counts = np.zeros((29, 29))
+    counts = np.zeros((9, 16))
 
     # create empty matrix for accumulating velocities
-    vels = np.zeros((29, 29))
+    vels = np.zeros((9, 16))
 
     for i in range(len(interaction_df)):
-        overlap = overlap_dict[interaction_df.index[i]]
+        overlap = overlap_dict[interaction_df.index[i]].reshape((9,16))
 
         # add count and velocity values
         if np.sum(overlap) >= 1:
             counts += overlap
             vel = overlap * interaction_df.iloc[i][["vel_change_bee_focal"]][0]
-            vels += vel
+            if not np.isnan(vel).any():
+                vels += vel
 
     avg_vel = np.divide(vels, counts, out=np.zeros_like(vels), where=counts != 0)
     return counts, avg_vel
@@ -609,13 +610,13 @@ def compute_interaction_points(interaction_df, overlap_dict):
 def create_overlap_dict(interaction_df, focal_id):
     overlap_dict = {}
     n_rows = len(interaction_df)
-    print(n_rows)
+    
     interaction_df = interaction_df.to_dict(orient='index')
     
     for index in interaction_df:
         overlap_dict[index] = get_bee_body_overlap(interaction_df[index], focal_id).ravel()
-        if index % 1000 == 0:
-            print(index)
+        if index % 10000 == 0:
+            print('%d/%d' % (index, n_rows))
     
     return overlap_dict
 
@@ -837,7 +838,7 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
         for interaction in interactions_df["interaction_start"]
     ]
     
-    fit_features = ["phase", "r_squared", "amplitude"]
+    fit_features = ["phase", "r_squared", "amplitude", "p_value", "age"]
     
     interactions_df = add_features(interactions_df, circadian_df, bee_id=0, features=fit_features)
     interactions_df = add_features(interactions_df, circadian_df, bee_id=1, features=fit_features)
@@ -940,3 +941,12 @@ def create_intermediate_df_per_bee(dt_from, dt_to, interaction_df, velocities):
         intermediate_df, interaction_df
     )
     return intermediate_df
+
+def get_min_and_max_pos(path):
+    interactions = pd.read_pickle(path)
+    interactions = interactions[['x_pos_start_bee0', 'y_pos_start_bee0',
+                                 'x_pos_start_bee1', 'y_pos_start_bee1']]
+    x_vals = pd.concat([interactions['x_pos_start_bee0'], interactions['x_pos_start_bee1']])
+    y_vals = pd.concat([interactions['y_pos_start_bee0'], interactions['y_pos_start_bee1']])
+    
+    return np.min(x_vals), np.max(x_vals), np.min(y_vals), np.max(y_vals)

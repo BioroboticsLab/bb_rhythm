@@ -678,7 +678,7 @@ def plot_bins_velocity_focal_non_focal(
     # plot
     rcParams.update({"figure.autolayout": True})
     if axs is None:
-        fig, axs = plt.subplots(1, 1, figsize=(20, 20))
+        fig, axs = plt.subplots(1, 1, figsize=(8, 8))
     sns.heatmap(plot_pivot, annot=True, cmap="rocket", robust=True, norm=norm, ax=axs)
     axs.invert_yaxis()
     axs.set_title("%s velocity change of focal bee" % fig_title_agg_func)
@@ -1293,3 +1293,29 @@ def plot_fit_params_per_loc(df, variable, xrange, yrange, label=None, cmap=None,
         plt.savefig(save_to)
         
     plt.show()
+    
+
+def plot_binned_velocity_change(combined_df, plot_path=None, axs=None,
+                                       bin_parameter2="r_squared_focal",
+                                       bin_parameter1="r_squared_non_focal",
+                                       change_type="vel_change_bee_focal",
+                                       fig_label_bin_metric="Circadian power",
+                                       agg_func="median", unit="quantile"):
+    
+    # Create combination matrix.
+    plot_pivot = pd.pivot_table(data=combined_df,
+                                values=change_type,
+                                index=bin_parameter1, columns=bin_parameter2,
+                                aggfunc=agg_func)
+
+    # Plot.
+    sns.set_theme()
+    if axs is None:
+        fig, axs = plt.subplots(1, 1, figsize=(8, 8))
+    label = 'Number of interactions' if agg_func=='count' else f'{agg_func.capitalize()} velocity change of focal bee [mm/s]'
+    sns.heatmap(plot_pivot, annot=True, cmap="rocket", robust=True, ax=axs,
+                cbar_kws={'label': label})
+    axs.invert_yaxis()
+    axs.set(xlabel=f"{fig_label_bin_metric} of focal bee [{unit}]",
+            ylabel=f"{fig_label_bin_metric} of non-focal bee [{unit}]")
+    plt.savefig(plot_path)
