@@ -2,6 +2,7 @@ import scipy
 from sklearn.linear_model import HuberRegressor
 from sklearn.preprocessing import PolynomialFeatures
 from statsmodels import api as sm
+import statsmodels
 from statsmodels.formula import api as smf
 from statsmodels.tsa.stattools import adfuller
 import numpy as np
@@ -175,8 +176,8 @@ def test_bin_normally_distributed(change_type, group, name, printing):
 
 
 def time_lagged_cross_correlation(p, q):
-    p = p.tonumpy()
-    q = q.tonumpy()
+    p = p.to_numpy()
+    q = q.to_numpy()
     p = (p - np.mean(p)) / (np.std(p) * len(p))
     q = (q - np.mean(q)) / (np.std(q))
     c = scipy.signal.correlate(p, q, "full")
@@ -184,38 +185,35 @@ def time_lagged_cross_correlation(p, q):
 
 
 def apply_time_lagged_cross_correlation_to_df(df, y_variable="velocity"):
-    df.replace(np.inf, np.nan).replace(-np.inf, np.nan).dropna(inplace=True)
-    p_value_velocity = adfuller(df[y_variable])[1]
-    if p_value_velocity > 0.05:
-        return pd.DataFrame({None: "%s non-stationary" % y_variable})
-    cross_correlation_df = pd.DataFrame()
-    for column in df.columns.remove(y_variable):
-        df_subset = (
-            df[[y_variable, column]]
-            .replace(np.inf, np.nan)
-            .replace(-np.inf, np.nan)
-            .dropna()
-        )
-        p_value = adfuller(df_subset[column])[1]
-        if p_value > 0.05:
-            if column is not "altitude":
-                continue
-            else:
-                cross_correlation_df["ccr"] = time_lagged_cross_correlation(
-                    df_subset[y_variable], df_subset[column]
-                )
-                lags = scipy.signal.correlation_lags(
-                    len(df_subset[y_variable]), len(df_subset[column])
-                )
-                cross_correlation_df["lags"] = lags
-                cross_correlation_df["parameter"] = len(lags) * [column]
-        else:
+    df.velocity.replace(np.inf, np.nan).replace(-np.inf, np.nan).dropna(inplace=True)
+    if len(df) == 0:
+        print("df contains only nans: %s" % str(df))
+        return None
+    try:
+        p_value_velocity = adfuller(df[y_variable])[1]
+    except (ValueError, statsmodels.tools.sm_exceptions.MissingDataError):
+        p_value_velocity = np.nan
+    cross_correlation_dfs = pd.DataFrame(columns=["lags", "parameter", "ccr", "adfuller", "adfuller_v"])
+    for column in df.drop(columns=[y_variable]).columns:
+        cross_correlation_df = pd.DataFrame(columns=["lags", "parameter", "ccr", "adfuller", "adfuller_v"])
+        df_subset  = df[[column, y_variable]]
+        try:
+            p_value = adfuller(df_subset[column].replace({np.inf: np.nan, -np.inf: np.nan}).dropna())[1]
+        except (ValueError, statsmodels.tools.sm_exceptions.MissingDataError):
+            p_value = np.nan
+        try:
             cross_correlation_df["ccr"] = time_lagged_cross_correlation(
-                df_subset[y_variable], df_subset[column]
+                df_subset[y_variable], df_subset[column].replace(np.inf, np.nan).replace(-np.inf, np.nan).dropna()
             )
-            lags = scipy.signal.correlation_lags(
-                len(df_subset[y_variable]), len(df_subset[column])
-            )
-            cross_correlation_df["lags"] = lags
-            cross_correlation_df["parameter"] = len(lags) * [column]
-    return cross_correlation_df
+        except ValueError:
+            continue
+        lags = scipy.signal.correlation_lags(
+            len(df_subset[y_variable]), len(df_subset[column].replace(np.inf, np.nan).replace(-np.inf, np.nan).dropna())
+        )
+        cross_correlation_df["lags"] = lags
+        cross_correlation_df["parameter"] = len(lags) * [column]
+        cross_correlation_df["adfuller"] = len(lags) * [p_value]
+        cross_correlation_df["adfuller_v"] = len(lags) * [p_value_velocity]
+        if len(cross_correlation_df) > 0:
+            cross_correlation_dfs = pd.concat([cross_correlation_dfs, cross_correlation_df])
+    return cross_correlation_dfs

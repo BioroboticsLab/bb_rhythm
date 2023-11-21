@@ -30,13 +30,17 @@ def plot_velocity_over_time_with_weather(
     imshow=False,
     image_path=None,
     y_lim=None,
+    axs=None,
 ):
-    # create figure
-    fig, axs = plt.subplots(
-        3, 1, figsize=(16, 10), sharex=True, gridspec_kw={"height_ratios": [8, 1, 1]}
-    )
-    fig.suptitle("Mean movement speed over time")
-    fig.tight_layout()
+    if axs is None:
+        # create figure
+        fig, axs = plt.subplots(
+            3, 1, figsize=(16, 10), sharex=True, gridspec_kw={"height_ratios": [8, 1, 1]}
+        )
+        fig.suptitle("Mean movement speed over time")
+        fig.tight_layout()
+    else:
+        axs[0].set_title("Mean movement speed over time")
 
     # plot velocities
     plot_velocity_per_age_group(
@@ -115,6 +119,7 @@ def plot_velocity_per_age_group(
     age_map=False,
     age_bins=None,
     age_map_step_size=5,
+    age_bins_n=None,
     bin_max_n=None,
     bin_labels=None,
     smoothing=False,
@@ -145,7 +150,7 @@ def plot_velocity_per_age_group(
             n_bins=age_bins_n,
             step_size=age_map_step_size,
             bin_max_n=bin_max_n,
-            age_bins=age_bins,
+            bins=age_bins,
             bin_labels=bin_labels,
         )
         sorted_by = binning.bin_name
@@ -171,7 +176,7 @@ def plot_velocity_per_age_group(
     add_grey_nighttime_bars(ax, time_age_velocity_df)
 
     # axis settings
-    ax.set_ylabel("Mean movement speed [cm/s]")
+    ax.set_ylabel("Mean movement speed [mm/s]")
     ax.set_xlim(xmin=dt_from, xmax=dt_to)
     if y_lim is not None:
         ax.set_ylim(ymin=y_lim[0], ymax=y_lim[1])
@@ -231,7 +236,7 @@ def get_smoothed_velocities(sorted_by, time_age_velocity_df):
 
 
 def create_age_color_palette(age_map, sorted_by, time_age_velocity_df):
-    if age_map:
+    if age_map is not None:
         palette = sns.color_palette(
             "viridis", len(time_age_velocity_df[sorted_by].unique()) * 4
         )
@@ -629,8 +634,8 @@ def plot_bins_velocity_focal_non_focal(
     combined_df,
     plot_path=None,
     axs=None,
-    bin_parameter2="circadianess_focal",
-    bin_parameter1="circadianess_non_focal",
+    bin_parameter2="r_squared_focal",
+    bin_parameter1="r_squared_non_focal",
     n_bins=6,
     bins=None,
     step_size=None,
@@ -644,6 +649,7 @@ def plot_bins_velocity_focal_non_focal(
     agg_func="median",
     fig_title_agg_func="Median",
     norm=None,
+    cbar=True,
 ):
     # add bins
     binning = utils.Binning(bin_name=group_type1, bin_parameter=bin_parameter1)
@@ -678,12 +684,12 @@ def plot_bins_velocity_focal_non_focal(
     # plot
     rcParams.update({"figure.autolayout": True})
     if axs is None:
-        fig, axs = plt.subplots(1, 1, figsize=(8, 8))
-    sns.heatmap(plot_pivot, annot=True, cmap="rocket", robust=True, norm=norm, ax=axs)
+        fig, axs = plt.subplots(1, 1, figsize=(7.5, 7.5))
+    sns.heatmap(plot_pivot, annot=True, cmap="rocket", robust=True, norm=norm, ax=axs, cbar=cbar)
     axs.invert_yaxis()
     axs.set_title("%s velocity change of focal bee" % fig_title_agg_func)
     axs.set_xticklabels(sorted(combined_df.bins_focal.unique()))
-    axs.set_yticklabels(sorted(combined_df.bins_focal.unique()), rotation=0)
+    axs.set_yticklabels(sorted(combined_df.bins_non_focal.unique()), rotation=0)
     axs.set(
         xlabel="%s of focal bee" % fig_label_bin_metric,
         ylabel="%s of non-focal bee" % fig_label_bin_metric,
@@ -701,9 +707,10 @@ def prepare_interaction_df_for_plotting(interaction_df, relative_change_clean=Fa
     interactions.get_hour(interaction_df)
 
     # filter age = 0 out
-    interaction_df = interaction_df[
-        (interaction_df["age_focal"] > 0) & (interaction_df["age_non_focal"] > 0)
-    ]
+    if "age_focal" in interaction_df.columns:
+            interaction_df = interaction_df[
+            (interaction_df["age_focal"] > 0) & (interaction_df["age_non_focal"] > 0)
+        ]
 
     # filter Nans and infs
     to_be_cleaned_columns = [
@@ -711,9 +718,10 @@ def prepare_interaction_df_for_plotting(interaction_df, relative_change_clean=Fa
         "amplitude_non_focal",
         "vel_change_bee_focal",
         "vel_change_bee_non_focal",
-        "circadianess_focal",
-        "circadianess_non_focal",
+        "r_squared_focal",
+        "r_squared_non_focal",
     ]
+
     if relative_change_clean:
         to_be_cleaned_columns.extend(
             ["rel_change_bee_focal", "rel_change_bee_non_focal"]
@@ -730,6 +738,7 @@ def plot_p_values_per_bin_from_test(
     n_bins=6,
     fig_label_bin_metric="Circadian power",
     plot_path=None,
+    pkl_path=None,
     norm=None,
 ):
     if not ax:
@@ -758,7 +767,7 @@ def plot_p_values_per_bin_from_test(
     if x_labels.ndim > 1:
         x_labels_copy = x_labels.copy()
         x_labels = [
-            f"{x_label[1]}\n{y_label}"
+            f"{x_label[1]}\n{y_label[1]}"
             for x_label, y_label in zip(
                 x_labels.reshape((n_bins, 2)), y_labels.reshape((n_bins, 2))
             )
@@ -777,6 +786,8 @@ def plot_p_values_per_bin_from_test(
     )
     if plot_path:
         plt.savefig(plot_path)
+    if pkl_path:
+        np.save(pkl_path, p_values)
     return ax
 
 

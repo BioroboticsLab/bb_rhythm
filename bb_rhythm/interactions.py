@@ -376,46 +376,36 @@ def concat_is_forager(combined_df, df):
     combined_df["is_foraging_focal"] = pd.concat([df["is_foraging_bee0"], df["is_foraging_bee1"]])
     combined_df["is_foraging_non_focal"] = pd.concat([df["is_foraging_bee1"], df["is_foraging_bee0"]])
 
+def concat_p_value(combined_df, df):
+    combined_df["p_value_focal"] = pd.concat([df["p_value_bee0"], df["p_value_bee1"]])
+    combined_df["p_value_non_focal"] = pd.concat([df["p_value_bee1"], df["p_value_bee0"]])
+
 
 def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
-    column_ls = [
-            "circadianess_focal",
-            "circadianess_non_focal",
-            "age_focal",
-            "age_non_focal",
-            "vel_change_bee_non_focal",
-            "rel_change_bee_focal",
-            "rel_change_bee_non_focal",
-            "amplitude_focal",
-            "amplitude_non_focal",
-            "bee_id_focal",
-            "bee_id_non_focal",
-            "interaction_start",
-            "interaction_end",
-            "is_bursty_focal",
-            "is_bursty_non_focal",
-            "phase_focal",
-            "phase_non_focal"
-        ]
-    if "is_foraging_bee0" in df.columns:
-        column_ls.append(
-            "is_foraging_focal",
-            "is_foraging_non_focal",
-        )
-    combined_df = pd.DataFrame(
-        columns=column_ls
-    )
-    concat_circ(combined_df, df)
-    concat_amplitude(combined_df, df)
-    concat_ages(combined_df, df)
-    concat_velocity_changes(combined_df, df)
-    concat_position(combined_df, df, trans=trans)
-    concat_bee_id(combined_df, df)
-    concat_interaction_times(combined_df, df)
-    concat_is_bursty(combined_df, df)
+    combined_df = pd.DataFrame()
+    if "r_squared_bee0" in df.columns:
+        concat_circ(combined_df, df)
+    if "amplitude_bee0" in df.columns:
+        concat_amplitude(combined_df, df)
+    if "age_bee0" in df.columns:
+        concat_ages(combined_df, df)
+    if "vel_change_bee0" in df.columns:
+        concat_velocity_changes(combined_df, df)
+    if "rel_change_bee0" in df.columns:
+        concat_rel_velocity_changes(combined_df, df)
+    if ("x_pos_start_bee0" in df.columns) or ("focal0_x_trans"in df.columns):
+        concat_position(combined_df, df, trans=trans)
+    if "bee_id0" in df.columns:
+        concat_bee_id(combined_df, df)
+    if "interaction_start" in df.columns:
+        concat_interaction_times(combined_df, df)
+    if "p_value_bee0" in df.columns:
+        concat_p_value(combined_df, df)
+    if "phase_bee0" in df.columns:
+        concat_phase(combined_df, df)
     if "is_foraging_bee0" in df.columns:
         concat_is_forager(combined_df, df)
-    concat_phase(combined_df, df)
+        concat_is_bursty(combined_df, df)
     return combined_df
 
 
@@ -426,6 +416,8 @@ def concat_velocity_changes(combined_df, df):
     combined_df["vel_change_bee_non_focal"] = pd.concat(
         [df["vel_change_bee1"], df["vel_change_bee0"]]
     )
+
+def concat_rel_velocity_changes(combined_df, df):
     combined_df["rel_change_bee_focal"] = pd.concat(
         [df["rel_change_bee0"], df["rel_change_bee1"]]
     )
@@ -907,7 +899,7 @@ def add_velocity_change_to_intermediate_time_windows_df(intermediate_df, velocit
 def add_circadian_meta_data_to_intermediate_time_windows_df(
     intermediate_df, interaction_df
 ):
-    meta_params = ["age", "amplitude", "circadianess"]
+    meta_params = ["age", "amplitude", "circadianess", "p_value"]
     meta_params_dict = {}
     for param in meta_params:
         meta_params_dict[param] = len(intermediate_df) * [None]

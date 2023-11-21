@@ -85,21 +85,24 @@ def combine_weather_velocity_dfs(velocity_df, weather_df):
     )
     return velocity_weather_df
 
+def get_max_min_ccr_agg(x):
+    try:
+        columns = {"max_corr": x.ccr.max(),
+         "max_lag": x.lags.iloc[x.ccr.argmax()] * 10 / 60,
+         "min_corr": x.ccr.min(),
+         "min_lag": x.lags.iloc[x.ccr.argmin()] * 10 / 60,
+         }
+    except TypeError:
+        columns = {"max_corr": np.nan,
+         "max_lag": np.nan,
+         "min_corr": np.nan,
+         "min_lag": np.nan,
+         }
+    return pd.Series(columns, index=['max_corr', 'max_lag', 'min_corr', 'min_lag'])
+
 
 def create_min_max_ccr_df_per_bee(bee_id, cc_df):
-    df_ccf_ls = []
-    for parameter in cc_df.parameter.unique():
-        df_plot = cc_df[cc_df.parameter == parameter].groupby(["lags"]).agg("mean").reset_index()
-        for date in cc_df[cc_df.parameter == parameter].date.unique():
-            df_plot_day = cc_df[cc_df.parameter == parameter][cc_df[cc_df.parameter == parameter].date == date]
-            max_corr = df_plot_day.ccf.max()
-            max_leg = df_plot.lags.iloc[df_plot_day.ccf.argmax()] * 10 / 60
-            min_corr = df_plot_day.ccf.min()
-            min_leg = df_plot.lags.iloc[df_plot_day.ccf.argmin()] * 10 / 60
-            df_ccf_ls.append(
-                {"parameter": parameter, "max_corr": max_corr, "max_corr_time": max_leg, "min_corr": min_corr,
-                 "min_corr_time": min_leg, "date": date, "bee_id": bee_id, "age": cc_df["age"].iloc[0]})
-    df_corr = pd.DataFrame(df_ccf_ls)
+    df_corr = cc_df.groupby(["bee_id", "date", "age", "parameter"]).apply(get_max_min_ccr_agg).reset_index()
     return df_corr
 
 
@@ -119,15 +122,24 @@ def create_ccr_df_per_bee_from_period(bee_id, dt_from, dt_to, velocity_weather_d
             ]
         )
         if bee_age < 1:
+            print("Bee age: %d"  % bee_age)
             continue
         velocity_weather_df_day = velocity_weather_df[
-            (velocity_weather_df.date >= (current_dt)) &
-            (velocity_weather_df.date < (current_dt + delta))
+            (velocity_weather_df.index >= (current_dt)) &
+            (velocity_weather_df.index < (current_dt + delta))
             ]
+        if len(velocity_weather_df_day) == 0:
+            print("No velocities for %s" % str(current_dt))
+            continue
         cross_correlation_df = statistics.apply_time_lagged_cross_correlation_to_df(velocity_weather_df_day)
+        if cross_correlation_df is None:
+            print("df: %s" % str(velocity_weather_df_day))
+            continue
         cross_correlation_df["date"] = len(cross_correlation_df) * [current_dt]
         cross_correlation_df["bee_id"] = len(cross_correlation_df) * [bee_id]
         cross_correlation_df["age"] = len(cross_correlation_df) * [bee_age]
         cross_correlations_dfs.append(cross_correlation_df)
+    if len(cross_correlations_dfs) == 0:
+        return None
     cc_df = pd.concat(cross_correlations_dfs)
     return cc_df
