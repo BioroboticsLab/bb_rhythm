@@ -7,24 +7,24 @@ from collections import defaultdict
 import cv2
 import os
 import zipfile
+import pytz
 
 import bb_behavior.db
 
 
 def cluster_interactions_over_time(
-    iterable,
-    min_gap_size=datetime.timedelta(seconds=1),
-    min_event_duration=None,
-    y="y",
-    time="time",
-    color="color",
-    loc_info_0="loc_info_0",
-    loc_info_1="loc_info_1",
-    fill_gaps=True,
+        iterable,
+        min_gap_size=datetime.timedelta(seconds=1),
+        min_event_duration=None,
+        y="y",
+        time="time",
+        color="color",
+        loc_info_0="loc_info_0",
+        loc_info_1="loc_info_1",
+        fill_gaps=True,
 ):
     """Slightly modified version of bb_behavior.plot.time.plot_timeline()"""
-    # y=pair_string, time=timestamp, color="interaction", loc_info_0=location_parameters_bee0,
-    #                                loc_info_1=location_parameters_bee1
+    from collections import defaultdict
 
     last_x_for_y = defaultdict(list)
 
@@ -43,8 +43,8 @@ def cluster_interactions_over_time(
                 return False
             last = last_x_for_y[y_value][-1]
             return (
-                min_event_duration
-                and (last["dt_end"] - last["dt_start"]) < min_event_duration
+                    min_event_duration
+                    and (last["dt_end"] - last["dt_start"]) < min_event_duration
             )
 
         def push():
@@ -55,9 +55,8 @@ def cluster_interactions_over_time(
                 dt_end=dt,
                 location_info_0=location_info_0,
                 location_info_1=location_info_1,
-                location_info_0_end=location_info_0,
-                location_info_1_end=location_info_1,
             )
+
             if should_overwrite_last_event():
                 # Overwrite.
                 last_x_for_y[y_value][-1] = new_event_data
@@ -65,13 +64,32 @@ def cluster_interactions_over_time(
                 last_x_for_y[y_value].append(new_event_data)
 
         if not last_x or (category != last_x[-1]["Resource"]):
-            # case no end point
             push()
             continue
         last_x = last_x[-1]
 
         delay = dt - last_x["dt_end"]
         if min_gap_size is not None and delay > min_gap_size:
+            if fill_gaps:
+                overwrite_possible = (
+                        should_overwrite_last_event()
+                        and len(last_x_for_y[y_value]) >= 2
+                )
+                if overwrite_possible:
+                    last_x = last_x_for_y[y_value][-2]
+
+                gap_data = dict(
+                    Task=y_value,
+                    Resource="Gap",
+                    dt_start=last_x["dt_end"],
+                    dt_end=dt,
+                    loc_info_0=loc_info_0,
+                    loc_info_1=loc_info_1,
+                )
+                if overwrite_possible:
+                    last_x_for_y[y_value][-1] = gap_data
+                else:
+                    last_x_for_y[y_value].append(gap_data)
             push()
             continue
 
@@ -85,12 +103,14 @@ def cluster_interactions_over_time(
         # Check if last session doesn't meet min length criteria.
         last = sessions[-1]
         if (
-            min_event_duration
-            and (last["dt_end"] - last["dt_start"]) < min_event_duration
+                min_event_duration
+                and (last["dt_end"] - last["dt_start"]) < min_event_duration
         ):
             del sessions[-1]
 
-    df = list(itertools.chain(*list(s for s in last_x_for_y.values() if s is not None)))
+    df = list(
+        itertools.chain(*list(s for s in last_x_for_y.values() if s is not None))
+    )
 
     if len(df) == 0:
         return None
@@ -118,19 +138,41 @@ def extract_parameters_from_events(event):
         "bee_id1": int(bee_id1),
         "interaction_start": dt_start,
         "interaction_end": dt_end,
-        "bee_id0_x_pos_start": bee_id0_x_pos_start,
-        "bee_id0_y_pos_start": bee_id0_y_pos_start,
-        "bee_id0_theta_start": bee_id0_theta_start,
-        "bee_id1_x_pos_start": bee_id1_x_pos_start,
-        "bee_id1_y_pos_start": bee_id1_y_pos_start,
-        "bee_id1_theta_start": bee_id1_theta_start,
-        "bee_id0_x_pos_end": bee_id0_x_pos_end,
-        "bee_id0_y_pos_end": bee_id0_y_pos_end,
-        "bee_id0_theta_end": bee_id0_theta_end,
-        "bee_id1_x_pos_end": bee_id1_x_pos_end,
-        "bee_id1_y_pos_end": bee_id1_y_pos_end,
-        "bee_id1_theta_end": bee_id1_theta_end,
+        "x_pos_start_bee0": bee_id0_x_pos_start,
+        "y_pos_start_bee0": bee_id0_y_pos_start,
+        "theta_start_bee0": bee_id0_theta_start,
+        "x_pos_start_bee1": bee_id1_x_pos_start,
+        "y_pos_start_bee1": bee_id1_y_pos_start,
+        "theta_start_bee1": bee_id1_theta_start,
+        "x_pos_end_bee0": bee_id0_x_pos_end,
+        "y_pos_end_bee0": bee_id0_y_pos_end,
+        "theta_end_bee0": bee_id0_theta_end,
+        "x_pos_end_bee1": bee_id1_x_pos_end,
+        "y_pos_end_bee1": bee_id1_y_pos_end,
+        "theta_end_bee1": bee_id1_theta_end,
     }
+
+    def extract_parameters_from_random_samples(
+            event, interaction_start, interaction_end,
+    ):
+        return {
+            "bee_id0": event[0][0],
+            "bee_id1": event[1][0],
+            "interaction_start": interaction_start,
+            "interaction_end": interaction_end,
+            "x_pos_start_bee0": event[0][1],
+            "y_pos_start_bee0": event[0][2],
+            "theta_start_bee0": event[0][3],
+            "x_pos_start_bee1": event[1][1],
+            "y_pos_start_bee1": event[1][2],
+            "theta_start_bee1": event[1][3],
+            "x_pos_end_bee0": event[0][4],
+            "y_pos_end_bee0": event[0][5],
+            "theta_end_bee0": event[0][6],
+            "x_pos_end_bee1": event[1][4],
+            "y_pos_end_bee1": event[1][5],
+            "theta_end_bee1": event[1][6],
+        }
 
 
 def get_all_interactions_over_time(interaction_generator):
@@ -150,62 +192,91 @@ def get_all_interactions_over_time(interaction_generator):
                 interaction["location_info_bee1"],
             )
             # Make sure that the bee_id0 always refers to the one with the lower ID here.
-            if bee_id0 < bee_id1:
-                pair_string = "{}_{}".format(bee_id0, bee_id1)
-                yield dict(
-                    y=pair_string,
-                    time=timestamp,
-                    color="interaction",
-                    loc_info_0=location_parameters_bee0,
-                    loc_info_1=location_parameters_bee1,
-                )
-            else:
-                pair_string = "{}_{}".format(bee_id1, bee_id0)
-                yield dict(
-                    y=pair_string,
-                    time=timestamp,
-                    color="interaction",
-                    loc_info_0=location_parameters_bee1,
-                    loc_info_1=location_parameters_bee0,
-                )
+            pair_string = "{}_{}".format(bee_id0, bee_id1)
+            yield dict(
+                y=pair_string,
+                time=timestamp,
+                color="interaction",
+                loc_info_0=location_parameters_bee0,
+                loc_info_1=location_parameters_bee1,
+            )
 
     clustered_interactions = cluster_interactions_over_time(
-        generator(), fill_gaps=False
+        generator(),
+        min_gap_size=datetime.timedelta(seconds=2),
+        min_event_duration=datetime.timedelta(seconds=1),
+        fill_gaps=False,
     )
     return clustered_interactions
 
 
-def get_velocity_change_per_bee(interaction_start, interaction_end, velocities):
-    if velocities is None:
-        return None, None
-
+def get_velocity_change_per_bee(bee_id, interaction_start, interaction_end, velocities_path=None):
     delta_t = datetime.timedelta(0, 30)
     dt_before, dt_after = interaction_start - delta_t, interaction_end + delta_t
 
+    if type(bee_id) == np.int64:
+        bee_id = bee_id.item()
+
+    try:
+        # fetch velocities
+        velocities = pd.read_pickle(
+            os.path.join(velocities_path, "%d.pickle" % bee_id)
+        )
+    except (FileNotFoundError, TypeError):
+        # fetch velocities
+        velocities = bb_behavior.db.trajectory.get_bee_velocities(
+            bee_id,
+            dt_before,
+            dt_after,
+            confidence_threshold=0.1,
+            max_mm_per_second=15.0,
+        )
+
+    if velocities is None:
+        return None, None
+
     vel_before = np.mean(
         velocities[
-            (velocities["datetime"] >= dt_before)
-            & (velocities["datetime"] < interaction_start)
+            (velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC)) >= dt_before)
+            & (velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC)) < interaction_start)
         ]["velocity"]
     )
     vel_after = np.mean(
         velocities[
-            (velocities["datetime"] > interaction_end)
-            & (velocities["datetime"] <= dt_after)
+            (velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC)) > interaction_end)
+            & (velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC)) <= dt_after)
         ]["velocity"]
     )
-
-    # absolute velocity change
+    del velocities
     vel_change = vel_after - vel_before
-
-    # relative velocity change
     if (vel_before == 0) or np.isinf(vel_before) or np.isnan(vel_before):
         percent_change = np.NaN
     else:
         percent_change = (vel_change / vel_before) * 100
-
     return vel_change, percent_change
 
+
+def extract_parameters_from_random_samples(
+        event, interaction_start, interaction_end,
+    ):
+        return {
+            "bee_id0": event[0][0],
+            "bee_id1": event[1][0],
+            "interaction_start": interaction_start,
+            "interaction_end": interaction_end,
+            "bee_id0_x_pos_start": event[0][1],
+            "bee_id0_y_pos_start": event[0][2],
+            "bee_id0_theta_start": event[0][3],
+            "bee_id1_x_pos_start": event[1][1],
+            "bee_id1_y_pos_start": event[1][2],
+            "bee_id1_theta_start": event[1][3],
+            "bee_id0_x_pos_end": event[0][4],
+            "bee_id0_y_pos_end": event[0][5],
+            "bee_id0_theta_end": event[0][6],
+            "bee_id1_x_pos_end": event[1][4],
+            "bee_id1_y_pos_end": event[1][5],
+            "bee_id1_theta_end": event[1][6],
+        }
 
 def swap_focal_bee_to_be_low_circadian(df):
     new_frame_dict = {

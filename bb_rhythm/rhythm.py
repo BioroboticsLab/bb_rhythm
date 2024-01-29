@@ -6,14 +6,15 @@ import scipy
 import statsmodels.formula.api as smf
 import statsmodels.sandbox.stats.runs
 import scipy.stats as stats
-
-import bb_circadian.lombscargle
-import bb_behavior.db
 from statsmodels.regression.linear_model import RegressionResults
 import statsmodels.stats.stattools
 from statsmodels.tsa.stattools import adfuller
 
-from . import time, plotting
+import bb_behavior.db.base
+import bb_circadian.lombscargle
+import bb_behavior.db
+
+from . import time, plotting, utils
 
 
 def fit_cosinor(X, Y, period=24 * 60 * 60):
@@ -639,3 +640,139 @@ def get_raw_phase_df(file, velocities_path):
          ]
     )
     return df_max_vel
+
+
+def create_10_min_mean_velocity_df_per_bee(bee_id, dt_from, dt_to, velocity_df_path=None, cursor=None):
+    """
+
+    :param bee_id:
+    :param dt_from:
+    :param dt_to:
+    :param velocity_df_path:
+    :param cursor:
+    :return:
+    """
+    # set dates
+    delta = datetime.timedelta(days=1)
+    dates = list(
+        pd.date_range(
+            start=dt_from,
+            end=dt_to,
+            tz=pytz.UTC,
+        ).to_pydatetime()
+    )
+
+    # get velocities
+    velocities = bb_rhythm.utils.fetch_velocities_from_remote_or_db(bee_id, dt_to, dt_from, velocity_df_path)
+
+    # if empty return None
+    if velocities is None or velocities.empty:
+        return {
+            None: dict(
+                error="No velocities could be fetched..%d %s %s"
+                      % (int(bee_id), dates[0], dates[-1])
+            )
+        }
+    velocities.drop(columns=["time_passed"], inplace=True)
+
+    bee_age_lst = []
+
+    # iterate through all dates to get bee age
+    for current_dt in dates:
+        from_dt = current_dt
+        to_dt = current_dt + delta
+        bee_age = int(
+            bb_behavior.db.metadata.get_bee_ages(
+                [(bee_id, from_dt.date())], cursor=cursor
+            )[0][2]
+        )
+        # subset velocities
+        current_velocities = velocities[
+            (velocities["datetime"] >= from_dt) & (velocities["datetime"] < to_dt)
+            ]
+        bee_age_lst.extend([bee_age] * len(current_velocities))
+
+    # add age
+    velocities["age"] = bee_age_lst
+    # remove -1 ages
+    velocities = velocities[velocities.age != -1]
+    # remove NaNs
+    velocities = velocities[~pd.isnull(velocities.velocity)]
+
+    # get every ten minutes
+    velocities["time"] = velocities["datetime"].dt.round("10min")
+    velocities = velocities.drop(columns=["datetime"])
+    grouped_velocities = (
+        velocities.groupby(["time", "age"])["velocity"].mean().reset_index()
+    )
+    return grouped_velocities
+
+
+def create_cosinor_df_per_bee_time_period(bee_id, to_dt, from_dt, second=60, velocity_df_path=None):
+    """
+
+    :param bee_id:
+    :param to_dt:
+    :param from_dt:
+    :param second:
+    :param velocity_df_path:
+    :return:
+    """
+    # get velocities
+    velocities = utils.fetch_velocities_from_remote_or_db(bee_id, to_dt, from_dt, velocity_df_path)
+    if velocities is None:
+        return {None: dict(error="No velocities could be fetched..")}
+
+    # get median velocity to reduce noise and increase residual independency
+    if second > 0:
+        velocities["datetime"] = velocities["datetime"].dt.round("%ss" % second)
+        velocities = velocities.groupby(["datetime"])[["velocity", "time_passed"]].median().reset_index()
+    velocities.dropna(inplace=True)
+    if len(velocities) == 0:
+        return {None: dict(error="No velocities could be fetched..")}
+
+    # test for stationarity of velocities
+    p_adfuller = adfuller(velocities.velocity, regression="ct")[1]
+
+    # iterate through dates of time interval and calculate cosinor fit
+    # per day with a time window of 3 consecutive days
+    dates = list(
+        pd.date_range(
+            start="2019-08-20 12:00:00+00:00",
+            end="2019-09-14 12:00:00+00:00",
+            tz=pytz.UTC,
+        ).to_pydatetime()
+    )
+    delta = datetime.timedelta(days=1, hours=12)
+    data_ls = []
+    for current_dt in dates:
+        # get bee age
+        bee_age = int(
+            bb_behavior.db.metadata.get_bee_ages([(bee_id, current_dt.date())])[0][
+                2
+            ]
+        )
+        # "Bee is already dead or new to colony.."
+        if bee_age == -1 or bee_age == 0:
+            continue
+
+        # subset velocities
+        current_velocities = velocities[(velocities.datetime >= (current_dt - delta)) &
+                                        (velocities.datetime < (current_dt + delta))]
+        if len(current_velocities) == 0:
+            continue
+
+        # get circadian fit data
+        data = pd.DataFrame(fit_cosinor_fit_per_bee(
+            day=current_dt, bee_id=bee_id, velocities=current_velocities, bee_age=bee_age
+        ))
+        data["ad_fuller"] = p_adfuller
+        data["fit_type"] = second
+        data_ls.append(data)
+
+    # concat cosinor data to dataframe
+    if len(data_ls) > 0:
+        cosinor_df = pd.concat(data_ls)
+    else:
+        cosinor_df = {None: dict(error="No velocities could be fetched or bee is dead")}
+    return cosinor_df

@@ -66,6 +66,12 @@ def get_weather_frame(
 
 
 def combine_weather_velocity_dfs(velocity_df, weather_df):
+    """
+
+    :param velocity_df:
+    :param weather_df:
+    :return:
+    """
     velocity_df.rename(columns={"datetime": "date"}, inplace=True)
     velocity_df.drop(columns=["time_passed"], inplace=True)
     velocity_df = velocity_df[
@@ -102,11 +108,26 @@ def get_max_min_ccr_agg(x):
 
 
 def create_min_max_ccr_df_per_bee(bee_id, cc_df):
+    """
+
+    :param bee_id:
+    :param cc_df:
+    :return:
+    """
     df_corr = cc_df.groupby(["bee_id", "date", "age", "parameter"]).apply(get_max_min_ccr_agg).reset_index()
     return df_corr
 
 
 def create_ccr_df_per_bee_from_period(bee_id, dt_from, dt_to, velocity_weather_df, delta=datetime.timedelta(days=1)):
+    """
+
+    :param bee_id:
+    :param dt_from:
+    :param dt_to:
+    :param velocity_weather_df:
+    :param delta:
+    :return:
+    """
     dates  = list(
         pd.date_range(
             start=dt_from,
@@ -143,3 +164,45 @@ def create_ccr_df_per_bee_from_period(bee_id, dt_from, dt_to, velocity_weather_d
         return None
     cc_df = pd.concat(cross_correlations_dfs)
     return cc_df
+
+def calculate_weather_activity_cross_correlation(bee_id, dt_from, dt_to, weather_df_path=None, velocity_df_path=None, cc_path=None):
+    """
+
+    :param bee_id:
+    :param dt_from:
+    :param dt_to:
+    :param weather_df_path:
+    :param velocity_df_path:
+    :param cc_path:
+    :return:
+    """
+    # fetch weather df
+    weather_df = pd.read_pickle(weather_df_path)
+    weather_df.drop(columns=["lat", "long"], inplace=True)
+
+    # fetch velocities
+    velocity_df = utils.fetch_velocities_from_remote_or_db(
+        bee_id, dt_to, dt_from, velocity_df_path
+    )
+    if velocity_df is None:
+        return {None: "No velocities could be fetched"}
+    velocity_df.dropna(inplace=True)
+    if len(velocity_df) == 0:
+        return {None: "No velocities could be fetched"}
+
+    # combine weather and velocity df
+    velocity_weather_df = weather_api.combine_weather_velocity_dfs(
+        velocity_df, weather_df
+    )
+
+    # per bee_id full cross correlation velocity and weather per day
+    cc_df = weather_api.create_ccr_df_per_bee_from_period(
+        bee_id, dt_from, dt_to, velocity_weather_df
+    )
+    if cc_df is None:
+        return {None: "Bee is dead"}
+    cc_df.to_pickle(os.path.join(cc_path, "%s.pkl" % bee_id))
+
+    # get per bee, per day, per weather param max, min ccr
+    df_corr = weather_api.create_min_max_ccr_df_per_bee(bee_id, cc_df)
+    return df_corr

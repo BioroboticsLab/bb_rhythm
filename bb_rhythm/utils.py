@@ -125,6 +125,15 @@ class Binning:
 def fetch_velocities_from_remote_or_db(
     bee_id, dt_after, dt_before, velocities_path, max_mm_per_second=15.0
 ):
+    """
+
+    :param bee_id:
+    :param dt_after:
+    :param dt_before:
+    :param velocities_path:
+    :param max_mm_per_second:
+    :return:
+    """
     if type(bee_id) == np.int64:
         bee_id = bee_id.item()
     try:

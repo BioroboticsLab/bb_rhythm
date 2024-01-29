@@ -32,6 +32,24 @@ def plot_velocity_over_time_with_weather(
     y_lim=None,
     axs=None,
 ):
+    """
+
+    :param velocity_df:
+    :param weather_df:
+    :param dt_from:
+    :param dt_to:
+    :param age_map:
+    :param age_map_step_size:
+    :param smoothing:
+    :param rounded:
+    :param round_time:
+    :param age_bins:
+    :param imshow:
+    :param image_path:
+    :param y_lim:
+    :param axs:
+    :return:
+    """
     if axs is None:
         # create figure
         fig, axs = plt.subplots(
