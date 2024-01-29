@@ -1003,3 +1003,13 @@ def create_intermediate_df_per_bee(dt_from, dt_to, interaction_df, velocities):
         intermediate_df, interaction_df
     )
     return intermediate_df
+
+
+def get_min_and_max_pos(path):
+    interactions = pd.read_pickle(path)
+    interactions = interactions[['x_pos_start_bee0', 'y_pos_start_bee0',
+                                 'x_pos_start_bee1', 'y_pos_start_bee1']]
+    x_vals = pd.concat([interactions['x_pos_start_bee0'], interactions['x_pos_start_bee1']])
+    y_vals = pd.concat([interactions['y_pos_start_bee0'], interactions['y_pos_start_bee1']])
+    
+    return np.min(x_vals), np.max(x_vals), np.min(y_vals), np.max(y_vals)
