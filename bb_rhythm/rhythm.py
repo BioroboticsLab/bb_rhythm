@@ -464,7 +464,7 @@ def calculate_well_tested_circadianess_cosinor(circadianess_df):
         np.float64
     )
     circadianess_df["well_tested_circadianess"] = (
-            circadianess_df.is_circadian * circadianess_df.is_good_fit
+            circadianess_df.is_circadian #* circadianess_df.is_good_fit
     )
 
 

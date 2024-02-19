@@ -111,6 +111,19 @@ def add_grey_nighttime_bars(ax, df):
         )
 
 
+def add_distance_bars(ax, distance_series, n_bins, palette="Greys"):
+    distances = pd.qcut(distance_series.unique(), n_bins)
+    distance_palette = sns.color_palette(
+            palette, len(distances.unique())
+        )
+    i = 0
+    for distance in sorted(distances.unique()):
+        ax.axvspan(
+            distance.left, distance.right, color=distance_palette[i], alpha=0.3
+        )
+        print(distance)
+        i += 1
+
 def plot_velocity_per_age_group(
     time_age_velocity_df,
     ax,
@@ -176,7 +189,7 @@ def plot_velocity_per_age_group(
     add_grey_nighttime_bars(ax, time_age_velocity_df)
 
     # axis settings
-    ax.set_ylabel("Mean movement speed [cm/s]")
+    ax.set_ylabel("Mean movement speed [mm/s]")
     ax.set_xlim(xmin=dt_from, xmax=dt_to)
     if y_lim is not None:
         ax.set_ylim(ymin=y_lim[0], ymax=y_lim[1])
@@ -196,7 +209,7 @@ def plot_non_smoothed_age_velocity_over_time(
     )
 
 
-def plot_smoothed_age_velocity_over_time(ax, palette, sorted_by, time_age_velocity_df):
+def plot_smoothed_age_velocity_over_time(ax, palette, sorted_by, time_age_velocity_df, hue_order=None):
     # get smoothed velocities
     get_smoothed_velocities(sorted_by, time_age_velocity_df)
 
@@ -210,6 +223,7 @@ def plot_smoothed_age_velocity_over_time(ax, palette, sorted_by, time_age_veloci
         legend=False,
         ax=ax,
         palette=palette,
+        hue_order=hue_order,
     )
     sns.lineplot(
         data=time_age_velocity_df,
@@ -219,6 +233,7 @@ def plot_smoothed_age_velocity_over_time(ax, palette, sorted_by, time_age_veloci
         hue=sorted_by,
         ax=ax,
         palette=palette,
+        hue_order=hue_order,
     )
 
 
@@ -280,7 +295,7 @@ def set_fig_props_circadianess_per_age_plot(fig):
     fig.supxlabel("Age [days]")
     fig.supylabel("")
     fig.suptitle(
-        "Fraction of bees sig. different from shuffled data\n and the shuffled data was chi²"
+        "Proportion of circadian tested bees"
     )
 
 

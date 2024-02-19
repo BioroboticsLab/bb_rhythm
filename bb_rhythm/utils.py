@@ -15,6 +15,7 @@ class Binning:
         self.bin_max_value = None
         self.remove_none = True
         self.is_categorical = None
+        self.label_type = str
 
 
     def replace_bin_identifier_by_bin_map_identifier(self, df):
@@ -33,7 +34,7 @@ class Binning:
                 x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), bins=pd.IntervalIndex.from_breaks(bins)
             )
         if (self.step_size is None) and (self.bins is None):
-            self.bins = pd.qcut(x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), q=self.bin_n)
+            self.bins = pd.qcut(x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), q=self.bin_n, duplicates='drop')
         if (self.step_size is not None) and (self.bins is None):
             bins = []
             for i in range(int(self.bin_n)):
@@ -71,15 +72,18 @@ class Binning:
         for b in sorted(bins_unique):
             if bin_labels is None:
                 if not "age" in self.bin_parameter:
-                    label = "(%s, %s]" % (
-                        str(b.left.round(2)),
-                        str(b.right.round(2)),
-                    )
-                else:
-                    if b.left > 9:
-                        label = "%d+" % int(b.left)
+                    if self.label_type == str:
+                        label = "(%s, %s]" % (
+                            str(b.left.round(2)),
+                            str(b.right.round(2)),
+                        )
                     else:
-                        label = "0%d+" % int(b.left)
+                        label = pd.Interval(b.left.round(2), b.right.round(2))
+                else:
+                    if b.left > 8:
+                        label = "%d+" % int(b.left + 1)
+                    else:
+                        label = "0%d+" % int(b.left + 1)
             else:
                 label = bin_labels[i]
             self.bin_labels[b] = label
@@ -95,9 +99,11 @@ class Binning:
             remove_none=True,
             bins=None,
             bin_labels=None,
-            is_categorical=None
+            is_categorical=None,
+            label_type=str,
     ):
         self.remove_none = remove_none
+        self.label_type = label_type
         if is_categorical or (df[self.bin_parameter].dtype == pd.Categorical) or (df[self.bin_parameter].dtype == bool):
             self.is_categorical = True
         else:
@@ -146,3 +152,18 @@ def fetch_velocities_from_remote_or_db(
             max_mm_per_second=max_mm_per_second,
         )
     return velocities
+
+
+def split_ci_lower_upper(df, variables):
+    df_plt = df.copy()
+    df_plt = df_plt[df_plt["index"] == 0]
+    df_plt.drop(columns='index', inplace=True)
+    for var in variables:
+        ci_var_lower = df[df["index"] == 0]["ci_%s" % var]
+        ci_var_upper = df[df["index"] == 1]["ci_%s" % var]
+        df_plt.drop(columns="ci_%s" % var, inplace=True)
+        df_plt["ci_%s_lower" % var] = ci_var_lower.values
+        df_plt["ci_%s_upper" % var] = ci_var_upper.values
+    df_plt.reset_index(inplace=True)
+    df_plt.drop(columns=["index"], inplace=True)
+    return df_plt

@@ -58,6 +58,9 @@ def calculate_regression(
     elif type == "huber":
         fit = HuberRegressor(epsilon=epsilon, alpha=alpha).fit(X, y)
 
+    elif type == "log":
+        fit = sm.Logit(y, X).fit()
+
     else:
         raise NotImplementedError
 
