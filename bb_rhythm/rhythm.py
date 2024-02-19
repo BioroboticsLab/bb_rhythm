@@ -6,14 +6,15 @@ import scipy
 import statsmodels.formula.api as smf
 import statsmodels.sandbox.stats.runs
 import scipy.stats as stats
-
-import bb_circadian.lombscargle
-import bb_behavior.db
 from statsmodels.regression.linear_model import RegressionResults
 import statsmodels.stats.stattools
 from statsmodels.tsa.stattools import adfuller
 
-from . import time, plotting
+import bb_behavior.db.base
+import bb_circadian.lombscargle
+import bb_behavior.db
+
+from . import time, plotting, utils
 
 
 def fit_cosinor(X, Y, period=24 * 60 * 60):
@@ -30,8 +31,8 @@ def fit_cosinor(X, Y, period=24 * 60 * 60):
 
 def derive_cosine_parameter_from_cosinor(cosinor_fit):
     mesor = cosinor_fit.params[0]
-    amplitude = (cosinor_fit.params.beta_x ** 2 + cosinor_fit.params.gamma_x ** 2) ** (
-            1 / 2
+    amplitude = (cosinor_fit.params.beta_x**2 + cosinor_fit.params.gamma_x**2) ** (
+        1 / 2
     )
     # checking sign of beta and gamma and calculate phase accordingly
     # derived by https://rdrr.io/cran/card/src/R/cosinor-fit.R
@@ -39,7 +40,7 @@ def derive_cosine_parameter_from_cosinor(cosinor_fit):
     sg = np.sign(cosinor_fit.params.gamma_x)
     theta = np.arctan(np.abs(cosinor_fit.params.gamma_x / cosinor_fit.params.beta_x))
     if ((sb == 1) | (sb == 0)) & (sg == 1):  # both +
-        acrophase = - theta
+        acrophase = -theta
     elif (sb == -1) & ((sg == 1) | (sg == 0)):  # - and +
         acrophase = theta - np.pi
     elif ((sb == -1) | (sb == 0)) & (sg == -1):  # - and -
@@ -48,11 +49,11 @@ def derive_cosine_parameter_from_cosinor(cosinor_fit):
         acrophase = theta - (2 * np.pi)
 
     # shift phase to first time interval
-    acrophase %= (2 * np.pi)
+    acrophase %= 2 * np.pi
     if acrophase > np.pi:
-        acrophase -= (2 * np.pi)
-    elif acrophase < - np.pi:
-        acrophase += (2 * np.pi)
+        acrophase -= 2 * np.pi
+    elif acrophase < -np.pi:
+        acrophase += 2 * np.pi
     return mesor, amplitude, acrophase
 
 
@@ -63,10 +64,10 @@ def get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit):
 
     beta_r = cosinor_fit.params.beta_x
     beta_s = cosinor_fit.params.gamma_x
-    a_r = (beta_r ** 2 + beta_s ** 2) ** (-0.5) * beta_r
-    a_s = (beta_r ** 2 + beta_s ** 2) ** (-0.5) * beta_s
-    b_r = (1 / (1 + (beta_s ** 2 / beta_r ** 2))) * (-beta_s / beta_r ** 2)
-    b_s = (1 / (1 + (beta_s ** 2 / beta_r ** 2))) * (1 / beta_r)
+    a_r = (beta_r**2 + beta_s**2) ** (-0.5) * beta_r
+    a_s = (beta_r**2 + beta_s**2) ** (-0.5) * beta_s
+    b_r = (1 / (1 + (beta_s**2 / beta_r**2))) * (-beta_s / beta_r**2)
+    b_s = (1 / (1 + (beta_s**2 / beta_r**2))) * (1 / beta_r)
 
     jac = np.array([[a_r, a_s], [b_r, b_s]])
     cov_trans = np.dot(np.dot(jac, indVmat), np.transpose(jac))
@@ -142,9 +143,9 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # 3 - F = (N - 2p - 2)r² / (1-r²) > F -> variance is homogeneous
     F_hom = (
-            cosinor_fit.nobs
-            * cosinor_fit.fittedvalues.sum() ** 2
-            / (1 - cosinor_fit.fittedvalues.sum() ** 2)
+        cosinor_fit.nobs
+        * cosinor_fit.fittedvalues.sum() ** 2
+        / (1 - cosinor_fit.fittedvalues.sum() ** 2)
     )
     p_hom = 1 - scipy.stats.f.cdf(F_hom, 1, cosinor_fit.nobs)
 
@@ -155,7 +156,10 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # runs test
     try:
-        p_runs = statsmodels.sandbox.stats.runs.runstest_2samp(cosinor_fit.resid[cosinor_fit.resid >= 0], cosinor_fit.resid[cosinor_fit.resid < 0])[1]
+        p_runs = statsmodels.sandbox.stats.runs.runstest_2samp(
+            cosinor_fit.resid[cosinor_fit.resid >= 0],
+            cosinor_fit.resid[cosinor_fit.resid < 0],
+        )[1]
     except (TypeError, ValueError):
         p_runs = np.nan
 
@@ -181,7 +185,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
         "dw": dw,
         "p_runs": p_runs,
         "RSS": RSS,
-        "SSPE": SSPE
+        "SSPE": SSPE,
     }
     return data
 
@@ -206,7 +210,7 @@ def fit_circadian_cosine(X, Y, phase=0):
     Returns:
         Dictionary with all information about a fit.
     """
-    amplitude = 3 * np.std(Y) / (2 ** 0.5)
+    amplitude = 3 * np.std(Y) / (2**0.5)
     phase = phase
     offset = np.mean(Y)
     initial_parameters = [amplitude, phase, offset]
@@ -246,7 +250,7 @@ def fit_circadian_cosine(X, Y, phase=0):
 
 
 def collect_fit_data_for_bee_date(
-        bee_id, date, velocities=None, delta=datetime.timedelta(days=1, hours=12), phase=0
+    bee_id, date, velocities=None, delta=datetime.timedelta(days=1, hours=12), phase=0
 ):
     if "offset" in velocities.columns:
         ts = velocities.offset.values
@@ -283,7 +287,7 @@ def add_velocity_day_night_information(bee_date_data, velocities):
 
 
 def fit_circadianess_fit_per_bee_phase_variation(
-        day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None, phases=None
+    day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None, phases=None
 ):
     if bee_age == -1 or bee_age == 0:
         return {None: dict(error="Bee is already dead or new to colony..")}
@@ -327,7 +331,7 @@ def fit_circadianess_fit_per_bee_phase_variation(
 
 
 def fit_circadianess_fit_per_bee(
-        day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None
+    day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None
 ):
     if bee_age == -1 or bee_age == 0:
         return {None: dict(error="Bee is already dead or new to colony..")}
@@ -436,7 +440,7 @@ def create_mean_count_circadianess_per_day_df(circadianess_df, column="age_bins"
     # filter counts lower than 0.05 counts out
     circadianess_df = circadianess_df[
         circadianess_df["count"] > circadianess_df["count"].quantile(q=0.05)
-        ]
+    ]
     return circadianess_df
 
 
@@ -448,23 +452,23 @@ def calculate_well_tested_circadianess(circadianess_df):
         np.float64
     )
     circadianess_df["well_tested_circadianess"] = (
-            circadianess_df.is_circadian * circadianess_df.is_good_fit
+        circadianess_df.is_circadian * circadianess_df.is_good_fit
     )
+
 
 def calculate_well_tested_circadianess_cosinor(circadianess_df):
     circadianess_df["is_good_fit"] = (
-            (circadianess_df.p_reject > 0.05) &
-            (circadianess_df.p_ks < 0.05) &
-            (circadianess_df.p_hom > 0.05) &
-            (circadianess_df.ad_fuller < 0.05) &
-            (circadianess_df.dw > 0.5)).astype(
-        np.float64
-    )
-    circadianess_df["is_circadian"] = ((circadianess_df.p_value < 0.05) & (circadianess_df.amplitude > 0)).astype(
-        np.float64
-    )
+        (circadianess_df.p_reject > 0.05)
+        & (circadianess_df.p_ks < 0.05)
+        & (circadianess_df.p_hom > 0.05)
+        & (circadianess_df.ad_fuller < 0.05)
+        & (circadianess_df.dw > 0.5)
+    ).astype(np.float64)
+    circadianess_df["is_circadian"] = (
+        (circadianess_df.p_value < 0.05) & (circadianess_df.amplitude > 0)
+    ).astype(np.float64)
     circadianess_df["well_tested_circadianess"] = (
-            circadianess_df.is_circadian #* circadianess_df.is_good_fit
+        circadianess_df.is_circadian * circadianess_df.is_good_fit
     )
 
 
@@ -487,8 +491,8 @@ def create_phase_plt_age_df(circadianess_df, phase_shift=12):
     return pd.DataFrame(
         {
             "phase_plt": (
-                    (time.map_pi_time_interval_to_24h(circadianess_df["phase"]))
-                    + phase_shift
+                (time.map_pi_time_interval_to_24h(circadianess_df["phase"]))
+                + phase_shift
             ).tolist(),
             "Age [days]": circadianess_df["Age [days]"].tolist(),
             "age": circadianess_df["age"].tolist(),
@@ -496,7 +500,9 @@ def create_phase_plt_age_df(circadianess_df, phase_shift=12):
     )
 
 
-def add_phase_plt_to_df_cosine_fit(circadianess_df, fit_type="cosine", time_reference=None):
+def add_phase_plt_to_df_cosine_fit(
+    circadianess_df, fit_type="cosine", time_reference=None
+):
     if fit_type == "cosine":
         time_shift = 12
     else:
@@ -504,12 +510,15 @@ def add_phase_plt_to_df_cosine_fit(circadianess_df, fit_type="cosine", time_refe
     if time_reference:
         time_shift = circadianess_df["time_reference"]
     circadianess_df["phase_plt"] = (
-                                           time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
-                                   ) % 24
+        time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
+    ) % 24
     return circadianess_df
 
+
 def add_phase_plt_to_df_cosinor(circadianess_df, period=24):
-    circadianess_df["phase_plt"] = ((- period * circadianess_df["phase"] / (2 * np.pi)) + 12)  % 24
+    circadianess_df["phase_plt"] = (
+        (-period * circadianess_df["phase"] / (2 * np.pi)) + 12
+    ) % 24
     return circadianess_df
 
 
@@ -581,16 +590,16 @@ def get_normalized_velocities(dt_from, dt_to):
         dt_from - datetime.timedelta(hours=6), dt_to + datetime.timedelta(hours=6)
     )[["velocity", "datetime"]]
     velocities_mean["velocity_normalized"] = (
-            velocities_mean.velocity.values
-            - velocities_mean.set_index("datetime")
-            .rolling("12h")
-            .mean()
-            .reset_index()["velocity"]
-            .values
+        velocities_mean.velocity.values
+        - velocities_mean.set_index("datetime")
+        .rolling("12h")
+        .mean()
+        .reset_index()["velocity"]
+        .values
     )
     return velocities_mean[
         (dt_from <= velocities_mean.datetime) & (velocities_mean.datetime < dt_to)
-        ].reset_index()
+    ].reset_index()
 
 
 def get_constant_fit(velocities):
@@ -601,7 +610,7 @@ def get_constant_fit(velocities):
             [
                 t.total_seconds()
                 for t in velocities.datetime
-                         - pd.to_datetime(velocities.datetime.dt.date, utc=True)
+                - pd.to_datetime(velocities.datetime.dt.date, utc=True)
             ]
         )
     v = velocities.velocity.values
@@ -612,9 +621,7 @@ def get_constant_fit(velocities):
 
 def get_raw_phase_df(file, velocities_path):
     bee_id = int(file[:-7])
-    velocities = pd.read_pickle(
-        os.path.join(velocities_path, file)
-    )
+    velocities = pd.read_pickle(os.path.join(velocities_path, file))
     velocities["datetime"] = velocities["datetime"].dt.round("2min")
     velocities = velocities.groupby(["datetime"])["velocity"].mean().reset_index()
     velocities["date"] = velocities.datetime.dt.date
@@ -628,14 +635,169 @@ def get_raw_phase_df(file, velocities_path):
         age_lst.append((bee_id, name))
     age_lst = [int(age) for _, _, age in bb_behavior.db.metadata.get_bee_ages(age_lst)]
     df_max_vel = pd.concat(
-        [df_max_vel,
-         pd.DataFrame(
-             {"bee_id": len(age_lst) * [bee_id],
-              "datetime": time_lst,
-              "age": age_lst,
-              "velocity": velocity_lst
-              }
-         )
-         ]
+        [
+            df_max_vel,
+            pd.DataFrame(
+                {
+                    "bee_id": len(age_lst) * [bee_id],
+                    "datetime": time_lst,
+                    "age": age_lst,
+                    "velocity": velocity_lst,
+                }
+            ),
+        ]
     )
     return df_max_vel
+
+
+def create_10_min_mean_velocity_df_per_bee(
+    bee_id, dt_from, dt_to, velocity_df_path=None, cursor=None
+):
+    """
+
+    :param bee_id:
+    :param dt_from:
+    :param dt_to:
+    :param velocity_df_path:
+    :param cursor:
+    :return:
+    """
+    # set dates
+    delta = datetime.timedelta(days=1)
+    dates = list(
+        pd.date_range(
+            start=dt_from,
+            end=dt_to,
+            tz=pytz.UTC,
+        ).to_pydatetime()
+    )
+
+    # get velocities
+    velocities = bb_rhythm.utils.fetch_velocities_from_remote_or_db(
+        bee_id, dt_to, dt_from, velocity_df_path
+    )
+
+    # if empty return None
+    if velocities is None or velocities.empty:
+        return {
+            None: dict(
+                error="No velocities could be fetched..%d %s %s"
+                % (int(bee_id), dates[0], dates[-1])
+            )
+        }
+    velocities.drop(columns=["time_passed"], inplace=True)
+
+    bee_age_lst = []
+
+    # iterate through all dates to get bee age
+    for current_dt in dates:
+        from_dt = current_dt
+        to_dt = current_dt + delta
+        bee_age = int(
+            bb_behavior.db.metadata.get_bee_ages(
+                [(bee_id, from_dt.date())], cursor=cursor
+            )[0][2]
+        )
+        # subset velocities
+        current_velocities = velocities[
+            (velocities["datetime"] >= from_dt) & (velocities["datetime"] < to_dt)
+        ]
+        bee_age_lst.extend([bee_age] * len(current_velocities))
+
+    # add age
+    velocities["age"] = bee_age_lst
+    # remove -1 ages
+    velocities = velocities[velocities.age != -1]
+    # remove NaNs
+    velocities = velocities[~pd.isnull(velocities.velocity)]
+
+    # get every ten minutes
+    velocities["time"] = velocities["datetime"].dt.round("10min")
+    velocities = velocities.drop(columns=["datetime"])
+    grouped_velocities = (
+        velocities.groupby(["time", "age"])["velocity"].mean().reset_index()
+    )
+    return grouped_velocities
+
+
+def create_cosinor_df_per_bee_time_period(
+    bee_id, to_dt, from_dt, second=60, velocity_df_path=None
+):
+    """
+
+    :param bee_id:
+    :param to_dt:
+    :param from_dt:
+    :param second:
+    :param velocity_df_path:
+    :return:
+    """
+    # get velocities
+    velocities = utils.fetch_velocities_from_remote_or_db(
+        bee_id, to_dt, from_dt, velocity_df_path
+    )
+    if velocities is None:
+        return {None: dict(error="No velocities could be fetched..")}
+
+    # get median velocity to reduce noise and increase residual independency
+    if second > 0:
+        velocities["datetime"] = velocities["datetime"].dt.round("%ss" % second)
+        velocities = (
+            velocities.groupby(["datetime"])[["velocity", "time_passed"]]
+            .median()
+            .reset_index()
+        )
+    velocities.dropna(inplace=True)
+    if len(velocities) == 0:
+        return {None: dict(error="No velocities could be fetched..")}
+
+    # test for stationarity of velocities
+    p_adfuller = adfuller(velocities.velocity, regression="ct")[1]
+
+    # iterate through dates of time interval and calculate cosinor fit
+    # per day with a time window of 3 consecutive days
+    dates = list(
+        pd.date_range(
+            start="2019-08-20 12:00:00+00:00",
+            end="2019-09-14 12:00:00+00:00",
+            tz=pytz.UTC,
+        ).to_pydatetime()
+    )
+    delta = datetime.timedelta(days=1, hours=12)
+    data_ls = []
+    for current_dt in dates:
+        # get bee age
+        bee_age = int(
+            bb_behavior.db.metadata.get_bee_ages([(bee_id, current_dt.date())])[0][2]
+        )
+        # "Bee is already dead or new to colony.."
+        if bee_age == -1 or bee_age == 0:
+            continue
+
+        # subset velocities
+        current_velocities = velocities[
+            (velocities.datetime >= (current_dt - delta))
+            & (velocities.datetime < (current_dt + delta))
+        ]
+        if len(current_velocities) == 0:
+            continue
+
+        # get circadian fit data
+        data = pd.DataFrame(
+            fit_cosinor_fit_per_bee(
+                day=current_dt,
+                bee_id=bee_id,
+                velocities=current_velocities,
+                bee_age=bee_age,
+            )
+        )
+        data["ad_fuller"] = p_adfuller
+        data["fit_type"] = second
+        data_ls.append(data)
+
+    # concat cosinor data to dataframe
+    if len(data_ls) > 0:
+        cosinor_df = pd.concat(data_ls)
+    else:
+        cosinor_df = {None: dict(error="No velocities could be fetched or bee is dead")}
+    return cosinor_df

@@ -3,6 +3,7 @@ import bb_behavior.db
 import numpy as np
 import pandas as pd
 
+
 class Binning:
     def __init__(self, bin_name, bin_parameter):
         self.bin_name = bin_name
@@ -17,10 +18,8 @@ class Binning:
         self.is_categorical = None
         self.label_type = str
 
-
     def replace_bin_identifier_by_bin_map_identifier(self, df):
         df[self.bin_name] = [self.bin_labels[item] for item in self.bins]
-
 
     def create_bin(self, df=None, bins=None):
         """
@@ -31,7 +30,8 @@ class Binning:
         if (bins is not None) and (not self.is_categorical):
             bins.append(self.bin_max_value)
             self.bins = pd.cut(
-                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), bins=pd.IntervalIndex.from_breaks(bins)
+                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}),
+                bins=pd.IntervalIndex.from_breaks(bins),
             )
         if (self.step_size is None) and (self.bins is None):
             self.bins = pd.qcut(x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), q=self.bin_n, duplicates='drop')
@@ -41,11 +41,11 @@ class Binning:
                 bins.append(i * self.step_size)
             bins.append(self.bin_max_value)
             self.bins = pd.cut(
-                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), bins=pd.IntervalIndex.from_breaks(bins)
+                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}),
+                bins=pd.IntervalIndex.from_breaks(bins),
             )
         if self.bins is None:
             assert ValueError
-
 
     def create_bin_labels(self, bin_labels=None):
         """
@@ -89,7 +89,6 @@ class Binning:
             self.bin_labels[b] = label
             i += 1
 
-
     def add_bins_to_df(
             self,
             df,
@@ -128,9 +127,19 @@ class Binning:
         df.dropna(subset=[self.bin_name], inplace=True)
         return df
 
+
 def fetch_velocities_from_remote_or_db(
     bee_id, dt_after, dt_before, velocities_path, max_mm_per_second=15.0
 ):
+    """
+
+    :param bee_id:
+    :param dt_after:
+    :param dt_before:
+    :param velocities_path:
+    :param max_mm_per_second:
+    :return:
+    """
     if type(bee_id) == np.int64:
         bee_id = bee_id.item()
     try:
