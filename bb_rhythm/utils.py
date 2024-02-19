@@ -3,6 +3,7 @@ import bb_behavior.db
 import numpy as np
 import pandas as pd
 
+
 class Binning:
     def __init__(self, bin_name, bin_parameter):
         self.bin_name = bin_name
@@ -16,10 +17,8 @@ class Binning:
         self.remove_none = True
         self.is_categorical = None
 
-
     def replace_bin_identifier_by_bin_map_identifier(self, df):
         df[self.bin_name] = [self.bin_labels[item] for item in self.bins]
-
 
     def create_bin(self, df=None, bins=None):
         """
@@ -30,21 +29,25 @@ class Binning:
         if (bins is not None) and (not self.is_categorical):
             bins.append(self.bin_max_value)
             self.bins = pd.cut(
-                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), bins=pd.IntervalIndex.from_breaks(bins)
+                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}),
+                bins=pd.IntervalIndex.from_breaks(bins),
             )
         if (self.step_size is None) and (self.bins is None):
-            self.bins = pd.qcut(x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), q=self.bin_n)
+            self.bins = pd.qcut(
+                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}),
+                q=self.bin_n,
+            )
         if (self.step_size is not None) and (self.bins is None):
             bins = []
             for i in range(int(self.bin_n)):
                 bins.append(i * self.step_size)
             bins.append(self.bin_max_value)
             self.bins = pd.cut(
-                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), bins=pd.IntervalIndex.from_breaks(bins)
+                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}),
+                bins=pd.IntervalIndex.from_breaks(bins),
             )
         if self.bins is None:
             assert ValueError
-
 
     def create_bin_labels(self, bin_labels=None):
         """
@@ -85,20 +88,23 @@ class Binning:
             self.bin_labels[b] = label
             i += 1
 
-
     def add_bins_to_df(
-            self,
-            df,
-            step_size=5,
-            n_bins=6,
-            bin_max_n=None,
-            remove_none=True,
-            bins=None,
-            bin_labels=None,
-            is_categorical=None
+        self,
+        df,
+        step_size=5,
+        n_bins=6,
+        bin_max_n=None,
+        remove_none=True,
+        bins=None,
+        bin_labels=None,
+        is_categorical=None,
     ):
         self.remove_none = remove_none
-        if is_categorical or (df[self.bin_parameter].dtype == pd.Categorical) or (df[self.bin_parameter].dtype == bool):
+        if (
+            is_categorical
+            or (df[self.bin_parameter].dtype == pd.Categorical)
+            or (df[self.bin_parameter].dtype == bool)
+        ):
             self.is_categorical = True
         else:
             self.bin_max_value = df[self.bin_parameter].max()
@@ -121,6 +127,7 @@ class Binning:
         self.replace_bin_identifier_by_bin_map_identifier(df)
         df.dropna(subset=[self.bin_name], inplace=True)
         return df
+
 
 def fetch_velocities_from_remote_or_db(
     bee_id, dt_after, dt_before, velocities_path, max_mm_per_second=15.0
