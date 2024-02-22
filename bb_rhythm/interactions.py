@@ -1068,18 +1068,34 @@ def interaction_df_to_MDG(interaction_df, weight="vel_change_bee_non_focal"):
 
 
 def create_MDG(interaction_df, weight):
-    #TODO: make attributes variable
-    vals = list(set(list(interaction_df.groupby(["bee_id_focal", "interaction_start", "age_focal"]).groups.keys()) + list(
-        interaction_df.groupby(["bee_id_non_focal", "interaction_end", "age_non_focal"]).groups.keys())))
-    g = interaction_df.pivot(["bee_id_focal", "interaction_start"],
-                             ["bee_id_non_focal", "interaction_end"],
-                             weight).reindex(columns=vals, index=vals, fill_value=np.NaN)
+    # TODO: make attributes variable
+    vals = list(
+        set(
+            list(
+                interaction_df.groupby(
+                    ["bee_id_focal", "interaction_start", "age_focal"]
+                ).groups.keys()
+            )
+            + list(
+                interaction_df.groupby(
+                    ["bee_id_non_focal", "interaction_end", "age_non_focal"]
+                ).groups.keys()
+            )
+        )
+    )
+    g = interaction_df.pivot(
+        ["bee_id_focal", "interaction_start"],
+        ["bee_id_non_focal", "interaction_end"],
+        weight,
+    ).reindex(columns=vals, index=vals, fill_value=np.NaN)
     MDG = nx.from_numpy_array(g.to_numpy(), create_using=nx.MultiDiGraph)
     return MDG, g
 
 
 def remove_nan_edges(MDG):
-    to_remove = [(a, b) for a, b, attrs in MDG.edges(data=True) if np.isnan(attrs["weight"])]
+    to_remove = [
+        (a, b) for a, b, attrs in MDG.edges(data=True) if np.isnan(attrs["weight"])
+    ]
     MDG.remove_edges_from(to_remove)
 
 
@@ -1087,7 +1103,11 @@ def set_bee_attributes_to_MDG(MDG, g):
     node_attributes = {}
     i = 0
     for bee_id_focal, interaction_start, age_focal in g.index:
-        node_attributes[i] = {"bee_id": bee_id_focal, "time": interaction_start, "age": age_focal}
+        node_attributes[i] = {
+            "bee_id": bee_id_focal,
+            "time": interaction_start,
+            "age": age_focal,
+        }
         i += 1
     nx.set_node_attributes(MDG, node_attributes)
 
@@ -1105,4 +1125,3 @@ def get_min_and_max_pos(path):
     )
 
     return np.min(x_vals), np.max(x_vals), np.min(y_vals), np.max(y_vals)
-

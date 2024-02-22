@@ -197,9 +197,7 @@ def calculate_weather_activity_cross_correlation(
         return {None: "No velocities could be fetched"}
 
     # combine weather and velocity df
-    velocity_weather_df = combine_weather_velocity_dfs(
-        velocity_df, weather_df
-    )
+    velocity_weather_df = combine_weather_velocity_dfs(velocity_df, weather_df)
 
     # per bee_id full cross correlation velocity and weather per day
     cc_df = create_ccr_df_per_bee_from_period(

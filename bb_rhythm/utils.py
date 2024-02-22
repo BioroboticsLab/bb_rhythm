@@ -34,7 +34,11 @@ class Binning:
                 bins=pd.IntervalIndex.from_breaks(bins),
             )
         if (self.step_size is None) and (self.bins is None):
-            self.bins = pd.qcut(x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}), q=self.bin_n, duplicates='drop')
+            self.bins = pd.qcut(
+                x=df[self.bin_parameter].replace({np.inf: np.nan, -np.inf: np.nan}),
+                q=self.bin_n,
+                duplicates="drop",
+            )
         if (self.step_size is not None) and (self.bins is None):
             bins = []
             for i in range(int(self.bin_n)):
@@ -90,20 +94,24 @@ class Binning:
             i += 1
 
     def add_bins_to_df(
-            self,
-            df,
-            step_size=5,
-            n_bins=6,
-            bin_max_n=None,
-            remove_none=True,
-            bins=None,
-            bin_labels=None,
-            is_categorical=None,
-            label_type=str,
+        self,
+        df,
+        step_size=5,
+        n_bins=6,
+        bin_max_n=None,
+        remove_none=True,
+        bins=None,
+        bin_labels=None,
+        is_categorical=None,
+        label_type=str,
     ):
         self.remove_none = remove_none
         self.label_type = label_type
-        if is_categorical or (df[self.bin_parameter].dtype == pd.Categorical) or (df[self.bin_parameter].dtype == bool):
+        if (
+            is_categorical
+            or (df[self.bin_parameter].dtype == pd.Categorical)
+            or (df[self.bin_parameter].dtype == bool)
+        ):
             self.is_categorical = True
         else:
             self.bin_max_value = df[self.bin_parameter].max()
@@ -166,7 +174,7 @@ def fetch_velocities_from_remote_or_db(
 def split_ci_lower_upper(df, variables):
     df_plt = df.copy()
     df_plt = df_plt[df_plt["index"] == 0]
-    df_plt.drop(columns='index', inplace=True)
+    df_plt.drop(columns="index", inplace=True)
     for var in variables:
         ci_var_lower = df[df["index"] == 0]["ci_%s" % var]
         ci_var_upper = df[df["index"] == 1]["ci_%s" % var]

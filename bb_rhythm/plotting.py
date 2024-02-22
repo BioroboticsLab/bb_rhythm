@@ -135,16 +135,13 @@ def add_grey_nighttime_bars(ax, df):
 
 def add_distance_bars(ax, distance_series, n_bins, palette="Greys"):
     distances = pd.qcut(distance_series.unique(), n_bins)
-    distance_palette = sns.color_palette(
-            palette, len(distances.unique())
-        )
+    distance_palette = sns.color_palette(palette, len(distances.unique()))
     i = 0
     for distance in sorted(distances.unique()):
-        ax.axvspan(
-            distance.left, distance.right, color=distance_palette[i], alpha=0.3
-        )
+        ax.axvspan(distance.left, distance.right, color=distance_palette[i], alpha=0.3)
         print(distance)
         i += 1
+
 
 def plot_velocity_per_age_group(
     time_age_velocity_df,
@@ -249,7 +246,9 @@ def plot_non_smoothed_age_velocity_over_time(
     )
 
 
-def plot_smoothed_age_velocity_over_time(ax, palette, sorted_by, time_age_velocity_df, hue_order=None):
+def plot_smoothed_age_velocity_over_time(
+    ax, palette, sorted_by, time_age_velocity_df, hue_order=None
+):
     # get smoothed velocities
     get_smoothed_velocities(sorted_by, time_age_velocity_df)
 
@@ -347,9 +346,7 @@ def plot_boxplot(circadianess_df, ax, x="age_bins", order=None):
 def set_fig_props_circadianess_per_age_plot(fig):
     fig.supxlabel("Age [days]")
     fig.supylabel("")
-    fig.suptitle(
-        "Proportion of circadian tested bees"
-    )
+    fig.suptitle("Proportion of circadian tested bees")
 
 
 def plot_raincloudplot(circadianess_df, ax, x="age_bins", hue_norm=None, order=None):
