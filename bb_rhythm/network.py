@@ -152,20 +152,19 @@ def add_children(tree, parent, interaction_df, time_threshold, vel_change_thresh
         inplace=True,
     )
     for index, row in root_child_df.iterrows():
-        try:
-            tree.create_node(
-                int(row["bee_id_non_focal"]),
-                "%d_%s" % (int(row["bee_id_non_focal"]), str(row["datetime"])),
-                parent=parent.identifier,
-                data=Interaction(row),
-            )
-        except treelib.exceptions.DuplicatedNodeIdError:
-            tree.create_node(
-                int(row["bee_id_non_focal"]),
-                "%d_%s_%d" % (int(row["bee_id_non_focal"]), str(row["datetime"]), 1),
-                parent=parent.identifier,
-                data=Interaction(row),
-            )
+        not_labeled = True
+        ms = 0
+        while not_labeled:
+            try:
+                tree.create_node(
+                    int(row["bee_id_non_focal"]),
+                    "%d_%s" % (int(row["bee_id_non_focal"]), str(row["datetime"] + datetime.timedelta(microseconds=ms))),
+                    parent=parent.identifier,
+                    data=Interaction(row),
+                )
+                not_labeled = False
+            except treelib.exceptions.DuplicatedNodeIdError:
+                ms += 1
 
 
 def construct_interaction_tree_recursion(
@@ -188,3 +187,45 @@ def create_interaction_tree(
         tree, interaction_df, time_threshold, vel_change_threshold, time_stop
     )
     return tree
+
+
+def tree_to_path_df(slurm_job: SLURMJob) -> pd.DataFrame:
+    path_df = pd.DataFrame()
+    tree_id = 0
+    for kwarg, result in slurm_job.items(ignore_open_jobs=True):
+        path_id = 0
+        for path in result.paths_to_leaves():
+            i = 0
+            is_root = True
+            for node in path:
+                if i > 0:
+                    is_root = False
+                node = result.get_node(node)
+                if not is_root:
+                    parent = [result.get_node(node.predecessor(result.identifier)).tag]
+                    time_gap = [result.get_node(node.predecessor(result.identifier)).data.datetime - node.data.datetime]
+                else:
+                    parent = [None]
+                    time_gap = [datetime.timedelta(minutes=0)]
+                path_df = pd.concat([path_df, pd.DataFrame({
+                    "bee_id": [node.tag],
+                    "datetime": [node.data.datetime],
+                    "phase": [node.data.phase],
+                    "x_pos": [node.data.x_pos],
+                    "y_pos": [node.data.y_pos],
+                    "vel_change_parent": [node.data.vel_change_parent],
+                    "r_squared": [node.data.r_squared],
+                    "age": [node.data.age],
+                    "is_root": [is_root],
+                    "depth": [i],
+                    "is_leaf": [node.is_leaf()],
+                    "n_children": [len(node.successors(result.identifier))],
+                    "parent": parent,
+                    "tree_id": [tree_id],
+                    "time_gap": time_gap,
+                    "path_id": [path_id],
+                })])
+                i += 1
+            path_id += 1
+        tree_id += 1
+    return path_df
