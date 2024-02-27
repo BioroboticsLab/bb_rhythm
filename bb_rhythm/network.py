@@ -2,7 +2,7 @@ import datetime
 import pandas as pd
 from treelib import Tree
 import treelib
-
+from slurmjob import SLURMJob
 
 class Interaction(object):
     #TODO: make uniform series or dataframe as input
