@@ -104,16 +104,23 @@ def add_root(
         inplace=True,
     )
     for index, row in root_child_df.iterrows():
-        tree.create_node(
-            int(row["child_bee_id"]),
-            "%d_%s" % (int(row["child_bee_id"]), str(row["datetime"])),
-            parent="%d_%s"
-            % (
-                int(source_bee_ids.bee_id_focal),
-                str(source_bee_ids.interaction_start),
-            ),
-            data=Interaction(row),
-        )
+        not_labeled = True
+        ms = 0
+        while not_labeled:
+            try:
+                tree.create_node(
+                    int(row["child_bee_id"]),
+                    "%d_%s" % (int(row["child_bee_id"]), str(row["datetime"])),
+                    parent="%d_%s"
+                    % (
+                        int(source_bee_ids.bee_id_focal),
+                        str(source_bee_ids.interaction_start),
+                    ),
+                    data=Interaction(row),
+                )
+                not_labeled = False
+            except treelib.exceptions.DuplicatedNodeIdError:
+                ms += 1
 
 
 def add_children(tree, parent, interaction_df, time_threshold, vel_change_threshold):
