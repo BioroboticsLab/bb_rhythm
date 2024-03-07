@@ -123,12 +123,14 @@ def add_grey_nighttime_bars(ax, df):
     for day in np.unique([day.date() for day in df.date]):
         day = datetime.datetime.combine(day, df.date.iloc[0].to_pydatetime().time())
         ax.axvspan(
-            day, day + datetime.timedelta(hours=6), facecolor="lightgrey", alpha=0.5
+            day, day + datetime.timedelta(hours=6), facecolor="lightgrey", edgecolor=None, alpha=0.5, linewidth=0,
         )
         ax.axvspan(
             day + datetime.timedelta(hours=18),
             day + datetime.timedelta(hours=24),
             facecolor="lightgrey",
+            linewidth=0,
+            edgecolor=None,
             alpha=0.5,
         )
 
@@ -886,7 +888,7 @@ def apply_three_group_age_map_for_plotting_phase(circadianess_df):
         x=circadianess_df["age"], bins=[-1, 0, 10, 25, max_age]
     )
 
-    age_map = {
+    age_dict = {
         "(0.0, 10.0]": "Age < 10 days",
         "(10.0, 25.0]": "Age >= 10, < 25 days",
         ("(25.0, %s]" % str(float(max_age))): "Age >= 25 days",
