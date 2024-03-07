@@ -198,7 +198,7 @@ def plot_non_smoothed_age_velocity_over_time(
 
 def plot_smoothed_age_velocity_over_time(ax, palette, sorted_by, time_age_velocity_df):
     # get smoothed velocities
-    get_smoothed_velocities(sorted_by, time_age_velocity_df)
+    time_age_velocity_df = get_smoothed_velocities(sorted_by, time_age_velocity_df)
 
     # plot
     sns.lineplot(
@@ -225,14 +225,11 @@ def plot_smoothed_age_velocity_over_time(ax, palette, sorted_by, time_age_veloci
 def get_smoothed_velocities(sorted_by, time_age_velocity_df):
     time_age_velocity_df["velocity_smoothed"] = time_age_velocity_df["velocity"]
     for age_bin in time_age_velocity_df[sorted_by].unique():
-        time_age_velocity_df["velocity_smoothed"][
-            time_age_velocity_df[sorted_by] == age_bin
-        ] = gaussian_filter1d(
-            time_age_velocity_df["velocity"][
-                time_age_velocity_df[sorted_by] == age_bin
-            ],
+        time_age_velocity_df.loc[time_age_velocity_df[sorted_by] == age_bin]["velocity_smoothed"] = gaussian_filter1d(
+            time_age_velocity_df["velocity"][time_age_velocity_df[sorted_by] == age_bin],
             sigma=4,
         )
+    return time_age_velocity_df
 
 
 def create_age_color_palette(age_map, sorted_by, time_age_velocity_df):

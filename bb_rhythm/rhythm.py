@@ -189,7 +189,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 # This is copied and modified from bb_circadian.lombscargle
 def circadian_cosine(x, amplitude, phase, offset, period=24 * 60 * 60):
     frequency = 2.0 * np.pi * 1 / period
-    return np.cos(x * frequency - phase) * amplitude + offset
+    return np.cos(x * frequency + phase) * amplitude + offset
 
 
 # This is copied and modified from bb_circadian.lombscargle
@@ -639,3 +639,9 @@ def get_raw_phase_df(file, velocities_path):
          ]
     )
     return df_max_vel
+
+
+def create_grid_from_df(df, var, aggfunc):
+    
+    return pd.pivot_table(df, index='y', aggfunc=aggfunc,
+                   columns='x', values=var).to_numpy()
