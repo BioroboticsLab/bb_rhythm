@@ -8,6 +8,8 @@ import cv2
 import os
 import zipfile
 import time
+import networkx as nx
+import pytz
 
 import bb_behavior.db
 
@@ -24,8 +26,7 @@ def cluster_interactions_over_time(
     fill_gaps=True,
 ):
     """Slightly modified version of bb_behavior.plot.time.plot_timeline()"""
-    # y=pair_string, time=timestamp, color="interaction", loc_info_0=location_parameters_bee0,
-    #                                loc_info_1=location_parameters_bee1
+    from collections import defaultdict
 
     last_x_for_y = defaultdict(list)
 
@@ -56,9 +57,8 @@ def cluster_interactions_over_time(
                 dt_end=dt,
                 location_info_0=location_info_0,
                 location_info_1=location_info_1,
-                location_info_0_end=location_info_0,
-                location_info_1_end=location_info_1,
             )
+
             if should_overwrite_last_event():
                 # Overwrite.
                 last_x_for_y[y_value][-1] = new_event_data
@@ -66,13 +66,31 @@ def cluster_interactions_over_time(
                 last_x_for_y[y_value].append(new_event_data)
 
         if not last_x or (category != last_x[-1]["Resource"]):
-            # case no end point
             push()
             continue
         last_x = last_x[-1]
 
         delay = dt - last_x["dt_end"]
         if min_gap_size is not None and delay > min_gap_size:
+            if fill_gaps:
+                overwrite_possible = (
+                    should_overwrite_last_event() and len(last_x_for_y[y_value]) >= 2
+                )
+                if overwrite_possible:
+                    last_x = last_x_for_y[y_value][-2]
+
+                gap_data = dict(
+                    Task=y_value,
+                    Resource="Gap",
+                    dt_start=last_x["dt_end"],
+                    dt_end=dt,
+                    loc_info_0=loc_info_0,
+                    loc_info_1=loc_info_1,
+                )
+                if overwrite_possible:
+                    last_x_for_y[y_value][-1] = gap_data
+                else:
+                    last_x_for_y[y_value].append(gap_data)
             push()
             continue
 
@@ -119,19 +137,43 @@ def extract_parameters_from_events(event):
         "bee_id1": int(bee_id1),
         "interaction_start": dt_start,
         "interaction_end": dt_end,
-        "bee_id0_x_pos_start": bee_id0_x_pos_start,
-        "bee_id0_y_pos_start": bee_id0_y_pos_start,
-        "bee_id0_theta_start": bee_id0_theta_start,
-        "bee_id1_x_pos_start": bee_id1_x_pos_start,
-        "bee_id1_y_pos_start": bee_id1_y_pos_start,
-        "bee_id1_theta_start": bee_id1_theta_start,
-        "bee_id0_x_pos_end": bee_id0_x_pos_end,
-        "bee_id0_y_pos_end": bee_id0_y_pos_end,
-        "bee_id0_theta_end": bee_id0_theta_end,
-        "bee_id1_x_pos_end": bee_id1_x_pos_end,
-        "bee_id1_y_pos_end": bee_id1_y_pos_end,
-        "bee_id1_theta_end": bee_id1_theta_end,
+        "x_pos_start_bee0": bee_id0_x_pos_start,
+        "y_pos_start_bee0": bee_id0_y_pos_start,
+        "theta_start_bee0": bee_id0_theta_start,
+        "x_pos_start_bee1": bee_id1_x_pos_start,
+        "y_pos_start_bee1": bee_id1_y_pos_start,
+        "theta_start_bee1": bee_id1_theta_start,
+        "x_pos_end_bee0": bee_id0_x_pos_end,
+        "y_pos_end_bee0": bee_id0_y_pos_end,
+        "theta_end_bee0": bee_id0_theta_end,
+        "x_pos_end_bee1": bee_id1_x_pos_end,
+        "y_pos_end_bee1": bee_id1_y_pos_end,
+        "theta_end_bee1": bee_id1_theta_end,
     }
+
+    def extract_parameters_from_random_samples(
+        event,
+        interaction_start,
+        interaction_end,
+    ):
+        return {
+            "bee_id0": event[0][0],
+            "bee_id1": event[1][0],
+            "interaction_start": interaction_start,
+            "interaction_end": interaction_end,
+            "x_pos_start_bee0": event[0][1],
+            "y_pos_start_bee0": event[0][2],
+            "theta_start_bee0": event[0][3],
+            "x_pos_start_bee1": event[1][1],
+            "y_pos_start_bee1": event[1][2],
+            "theta_start_bee1": event[1][3],
+            "x_pos_end_bee0": event[0][4],
+            "y_pos_end_bee0": event[0][5],
+            "theta_end_bee0": event[0][6],
+            "x_pos_end_bee1": event[1][4],
+            "y_pos_end_bee1": event[1][5],
+            "theta_end_bee1": event[1][6],
+        }
 
 
 def get_all_interactions_over_time(interaction_generator):
@@ -151,61 +193,105 @@ def get_all_interactions_over_time(interaction_generator):
                 interaction["location_info_bee1"],
             )
             # Make sure that the bee_id0 always refers to the one with the lower ID here.
-            if bee_id0 < bee_id1:
-                pair_string = "{}_{}".format(bee_id0, bee_id1)
-                yield dict(
-                    y=pair_string,
-                    time=timestamp,
-                    color="interaction",
-                    loc_info_0=location_parameters_bee0,
-                    loc_info_1=location_parameters_bee1,
-                )
-            else:
-                pair_string = "{}_{}".format(bee_id1, bee_id0)
-                yield dict(
-                    y=pair_string,
-                    time=timestamp,
-                    color="interaction",
-                    loc_info_0=location_parameters_bee1,
-                    loc_info_1=location_parameters_bee0,
-                )
+            pair_string = "{}_{}".format(bee_id0, bee_id1)
+            yield dict(
+                y=pair_string,
+                time=timestamp,
+                color="interaction",
+                loc_info_0=location_parameters_bee0,
+                loc_info_1=location_parameters_bee1,
+            )
 
     clustered_interactions = cluster_interactions_over_time(
-        generator(), fill_gaps=False
+        generator(),
+        min_gap_size=datetime.timedelta(seconds=2),
+        min_event_duration=datetime.timedelta(seconds=1),
+        fill_gaps=False,
     )
     return clustered_interactions
 
 
-def get_velocity_change_per_bee(interaction_start, interaction_end, velocities):
-    if velocities is None:
-        return None, None
-
+def get_velocity_change_per_bee(
+    bee_id, interaction_start, interaction_end, velocities_path=None
+):
     delta_t = datetime.timedelta(0, 30)
     dt_before, dt_after = interaction_start - delta_t, interaction_end + delta_t
 
+    if type(bee_id) == np.int64:
+        bee_id = bee_id.item()
+
+    try:
+        # fetch velocities
+        velocities = pd.read_pickle(os.path.join(velocities_path, "%d.pickle" % bee_id))
+    except (FileNotFoundError, TypeError):
+        # fetch velocities
+        velocities = bb_behavior.db.trajectory.get_bee_velocities(
+            bee_id,
+            dt_before,
+            dt_after,
+            confidence_threshold=0.1,
+            max_mm_per_second=15.0,
+        )
+
+    if velocities is None:
+        return None, None
+
     vel_before = np.mean(
         velocities[
-            (velocities["datetime"] >= dt_before)
-            & (velocities["datetime"] < interaction_start)
+            (
+                velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
+                >= dt_before
+            )
+            & (
+                velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
+                < interaction_start
+            )
         ]["velocity"]
     )
     vel_after = np.mean(
         velocities[
-            (velocities["datetime"] > interaction_end)
-            & (velocities["datetime"] <= dt_after)
+            (
+                velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
+                > interaction_end
+            )
+            & (
+                velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
+                <= dt_after
+            )
         ]["velocity"]
     )
-
-    # absolute velocity change
+    del velocities
     vel_change = vel_after - vel_before
-
-    # relative velocity change
     if (vel_before == 0) or np.isinf(vel_before) or np.isnan(vel_before):
         percent_change = np.NaN
     else:
         percent_change = (vel_change / vel_before) * 100
-
     return vel_change, percent_change
+
+
+def extract_parameters_from_random_samples(
+    event,
+    interaction_start,
+    interaction_end,
+):
+    return {
+        "bee_id0": event[0][0],
+        "bee_id1": event[1][0],
+        "interaction_start": interaction_start,
+        "interaction_end": interaction_end,
+        "bee_id0_x_pos_start": event[0][1],
+        "bee_id0_y_pos_start": event[0][2],
+        "bee_id0_theta_start": event[0][3],
+        "bee_id1_x_pos_start": event[1][1],
+        "bee_id1_y_pos_start": event[1][2],
+        "bee_id1_theta_start": event[1][3],
+        "bee_id0_x_pos_end": event[0][4],
+        "bee_id0_y_pos_end": event[0][5],
+        "bee_id0_theta_end": event[0][6],
+        "bee_id1_x_pos_end": event[1][4],
+        "bee_id1_y_pos_end": event[1][5],
+        "bee_id1_theta_end": event[1][6],
+    }
 
 
 def swap_focal_bee_to_be_low_circadian(df):
@@ -263,7 +349,7 @@ def transform_coordinates(interaction, focal_bee=0):
 
     if focal_bee == 0:
         # translation to make bee0 coordinates the origin
-        x_prime = bee1_x - bee0_x    
+        x_prime = bee1_x - bee0_x
         y_prime = bee1_y - bee0_y
         bee1_coords = np.array([x_prime, y_prime])
 
@@ -283,6 +369,7 @@ def transform_coordinates(interaction, focal_bee=0):
         transformed = rotate(-bee1_theta, bee0_coords)
 
         return transformed[0], transformed[1], bee0_theta - bee1_theta
+
 
 def apply_transformation(interaction_df):
     # apply transformation of coordinates
@@ -364,22 +451,35 @@ def concat_bee_id(combined_df, df):
     combined_df["bee_id_focal"] = pd.concat([df["bee_id0"], df["bee_id1"]])
     combined_df["bee_id_non_focal"] = pd.concat([df["bee_id1"], df["bee_id0"]])
 
+
 def concat_phase(combined_df, df):
     combined_df["phase_focal"] = pd.concat([df["phase_bee0"], df["phase_bee1"]])
     combined_df["phase_non_focal"] = pd.concat([df["phase_bee1"], df["phase_bee0"]])
 
+
 def concat_is_bursty(combined_df, df):
-    combined_df["is_bursty_focal"] = pd.concat([df["is_bursty_bee0"], df["is_bursty_bee1"]])
-    combined_df["is_bursty_non_focal"] = pd.concat([df["is_bursty_bee1"], df["is_bursty_bee0"]])
+    combined_df["is_bursty_focal"] = pd.concat(
+        [df["is_bursty_bee0"], df["is_bursty_bee1"]]
+    )
+    combined_df["is_bursty_non_focal"] = pd.concat(
+        [df["is_bursty_bee1"], df["is_bursty_bee0"]]
+    )
 
 
 def concat_is_forager(combined_df, df):
-    combined_df["is_foraging_focal"] = pd.concat([df["is_foraging_bee0"], df["is_foraging_bee1"]])
-    combined_df["is_foraging_non_focal"] = pd.concat([df["is_foraging_bee1"], df["is_foraging_bee0"]])
+    combined_df["is_foraging_focal"] = pd.concat(
+        [df["is_foraging_bee0"], df["is_foraging_bee1"]]
+    )
+    combined_df["is_foraging_non_focal"] = pd.concat(
+        [df["is_foraging_bee1"], df["is_foraging_bee0"]]
+    )
+
 
 def concat_p_value(combined_df, df):
     combined_df["p_value_focal"] = pd.concat([df["p_value_bee0"], df["p_value_bee1"]])
-    combined_df["p_value_non_focal"] = pd.concat([df["p_value_bee1"], df["p_value_bee0"]])
+    combined_df["p_value_non_focal"] = pd.concat(
+        [df["p_value_bee1"], df["p_value_bee0"]]
+    )
 
 
 def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
@@ -394,7 +494,7 @@ def combine_bees_from_interaction_df_to_be_all_focal(df, trans=False):
         concat_velocity_changes(combined_df, df)
     if "rel_change_bee0" in df.columns:
         concat_rel_velocity_changes(combined_df, df)
-    if ("x_pos_start_bee0" in df.columns) or ("focal0_x_trans"in df.columns):
+    if ("x_pos_start_bee0" in df.columns) or ("focal0_x_trans" in df.columns):
         concat_position(combined_df, df, trans=trans)
     if "bee_id0" in df.columns:
         concat_bee_id(combined_df, df)
@@ -417,6 +517,7 @@ def concat_velocity_changes(combined_df, df):
     combined_df["vel_change_bee_non_focal"] = pd.concat(
         [df["vel_change_bee1"], df["vel_change_bee0"]]
     )
+
 
 def concat_rel_velocity_changes(combined_df, df):
     combined_df["rel_change_bee_focal"] = pd.concat(
@@ -572,7 +673,7 @@ def get_non_focal_bee_mask(x, y, theta):
     b += [x + 14, y + 14]
     c += [x + 14, y + 14]
     d += [x + 14, y + 14]
-    
+
     points = np.array([a, b, c, d]).round().astype(int)
 
     # draw rectangle based on edge points
@@ -812,19 +913,19 @@ def create_row_non_interaction_df(bee_id, non_interaction_start, non_interaction
 
 
 def add_features(interactions_df, feature_df, bee_id, features):
-    
     interactions_df.rename(columns={"bee_id%d" % bee_id: "bee_id"}, inplace=True)
     interactions_df = pd.merge(
-        interactions_df, feature_df, how="left", on=["date", "bee_id"])
-    
-    rename_dict = {feature: feature+"_bee%d" % bee_id for feature in features}
+        interactions_df, feature_df, how="left", on=["date", "bee_id"]
+    )
+
+    rename_dict = {feature: feature + "_bee%d" % bee_id for feature in features}
     rename_dict["bee_id"] = "bee_id%d" % bee_id
-    
+
     interactions_df.rename(columns=rename_dict, inplace=True)
-    
+
     return interactions_df
-    
-    
+
+
 def add_circadianess_to_interaction_df(interactions_df, circadian_df):
     interactions_df["date"] = [
         interaction.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -838,18 +939,26 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
     interactions_df = add_features(interactions_df, circadian_df, bee_id=1, features=fit_features)
     
     interactions_df.drop(columns=["date"], inplace=True)
-    
+
     return interactions_df
 
+
 def add_feature_to_interaction_df(interactions_df, feature_df, features):
-    interactions_df['date'] = interactions_df['interaction_start'].dt.date.astype('datetime64[ns]')
-    
-    interactions_df = add_features(interactions_df, feature_df, bee_id=0, features=features)
-    interactions_df = add_features(interactions_df, feature_df, bee_id=1, features=features)
-    
+    interactions_df["date"] = interactions_df["interaction_start"].dt.date.astype(
+        "datetime64[ns]"
+    )
+
+    interactions_df = add_features(
+        interactions_df, feature_df, bee_id=0, features=features
+    )
+    interactions_df = add_features(
+        interactions_df, feature_df, bee_id=1, features=features
+    )
+
     interactions_df.drop(columns=["date"], inplace=True)
-    
+
     return interactions_df
+
 
 def get_start_velocity(df):
     df["velocity_start_focal"] = (
@@ -936,11 +1045,80 @@ def create_intermediate_df_per_bee(dt_from, dt_to, interaction_df, velocities):
     )
     return intermediate_df
 
+
+def interaction_df_to_MDG(interaction_df, weight="vel_change_bee_non_focal"):
+    """
+    Creates a Multidirected Graph with weighted edges between nodes. Each node represents a bee interacting at a
+    specific time. The interaction partners are connected and the given weight parameters is the weight of this edge.
+    Each node/bee has several attributes like bee_id, time (interaction time), p_value, phase, r_squared, is_forager,
+     ...
+
+    :param interaction_df: pd.DataFrame containing the columns ["interaction_start", "interaction_end", "bee_id_focal",
+    "bee_id_non_focal", "age_focal", "age_non_focal"]
+    :param weight: string being a column of interaction_df
+    :return: networkx Multidirected Graph
+    """
+    MDG, g = create_MDG(interaction_df, weight)
+    remove_nan_edges(MDG)
+    set_bee_attributes_to_MDG(MDG, g)
+    return MDG
+
+
+def create_MDG(interaction_df, weight):
+    # TODO: make attributes variable
+    vals = list(
+        set(
+            list(
+                interaction_df.groupby(
+                    ["bee_id_focal", "interaction_start", "age_focal"]
+                ).groups.keys()
+            )
+            + list(
+                interaction_df.groupby(
+                    ["bee_id_non_focal", "interaction_end", "age_non_focal"]
+                ).groups.keys()
+            )
+        )
+    )
+    g = interaction_df.pivot(
+        ["bee_id_focal", "interaction_start"],
+        ["bee_id_non_focal", "interaction_end"],
+        weight,
+    ).reindex(columns=vals, index=vals, fill_value=np.NaN)
+    MDG = nx.from_numpy_array(g.to_numpy(), create_using=nx.MultiDiGraph)
+    return MDG, g
+
+
+def remove_nan_edges(MDG):
+    to_remove = [
+        (a, b) for a, b, attrs in MDG.edges(data=True) if np.isnan(attrs["weight"])
+    ]
+    MDG.remove_edges_from(to_remove)
+
+
+def set_bee_attributes_to_MDG(MDG, g):
+    node_attributes = {}
+    i = 0
+    for bee_id_focal, interaction_start, age_focal in g.index:
+        node_attributes[i] = {
+            "bee_id": bee_id_focal,
+            "time": interaction_start,
+            "age": age_focal,
+        }
+        i += 1
+    nx.set_node_attributes(MDG, node_attributes)
+
+
 def get_min_and_max_pos(path):
     interactions = pd.read_pickle(path)
-    interactions = interactions[['x_pos_start_bee0', 'y_pos_start_bee0',
-                                 'x_pos_start_bee1', 'y_pos_start_bee1']]
-    x_vals = pd.concat([interactions['x_pos_start_bee0'], interactions['x_pos_start_bee1']])
-    y_vals = pd.concat([interactions['y_pos_start_bee0'], interactions['y_pos_start_bee1']])
-    
+    interactions = interactions[
+        ["x_pos_start_bee0", "y_pos_start_bee0", "x_pos_start_bee1", "y_pos_start_bee1"]
+    ]
+    x_vals = pd.concat(
+        [interactions["x_pos_start_bee0"], interactions["x_pos_start_bee1"]]
+    )
+    y_vals = pd.concat(
+        [interactions["y_pos_start_bee0"], interactions["y_pos_start_bee1"]]
+    )
+
     return np.min(x_vals), np.max(x_vals), np.min(y_vals), np.max(y_vals)

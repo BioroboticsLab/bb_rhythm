@@ -59,6 +59,9 @@ def calculate_regression(
     elif type == "huber":
         fit = HuberRegressor(epsilon=epsilon, alpha=alpha).fit(X, y)
 
+    elif type == "log":
+        fit = sm.Logit(y, X).fit()
+
     else:
         raise NotImplementedError
 
@@ -193,27 +196,45 @@ def apply_time_lagged_cross_correlation_to_df(df, y_variable="velocity"):
         p_value_velocity = adfuller(df[y_variable])[1]
     except (ValueError, statsmodels.tools.sm_exceptions.MissingDataError):
         p_value_velocity = np.nan
-    cross_correlation_dfs = pd.DataFrame(columns=["lags", "parameter", "ccr", "adfuller", "adfuller_v"])
+    cross_correlation_dfs = pd.DataFrame(
+        columns=["lags", "parameter", "ccr", "adfuller", "adfuller_v"]
+    )
     for column in df.drop(columns=[y_variable]).columns:
-        cross_correlation_df = pd.DataFrame(columns=["lags", "parameter", "ccr", "adfuller", "adfuller_v"])
-        df_subset  = df[[column, y_variable]]
+        cross_correlation_df = pd.DataFrame(
+            columns=["lags", "parameter", "ccr", "adfuller", "adfuller_v"]
+        )
+        df_subset = df[[column, y_variable]]
         try:
-            p_value = adfuller(df_subset[column].replace({np.inf: np.nan, -np.inf: np.nan}).dropna())[1]
+            p_value = adfuller(
+                df_subset[column].replace({np.inf: np.nan, -np.inf: np.nan}).dropna()
+            )[1]
         except (ValueError, statsmodels.tools.sm_exceptions.MissingDataError):
             p_value = np.nan
         try:
             cross_correlation_df["ccr"] = time_lagged_cross_correlation(
-                df_subset[y_variable], df_subset[column].replace(np.inf, np.nan).replace(-np.inf, np.nan).dropna()
+                df_subset[y_variable],
+                df_subset[column]
+                .replace(np.inf, np.nan)
+                .replace(-np.inf, np.nan)
+                .dropna(),
             )
         except ValueError:
             continue
         lags = scipy.signal.correlation_lags(
-            len(df_subset[y_variable]), len(df_subset[column].replace(np.inf, np.nan).replace(-np.inf, np.nan).dropna())
+            len(df_subset[y_variable]),
+            len(
+                df_subset[column]
+                .replace(np.inf, np.nan)
+                .replace(-np.inf, np.nan)
+                .dropna()
+            ),
         )
         cross_correlation_df["lags"] = lags
         cross_correlation_df["parameter"] = len(lags) * [column]
         cross_correlation_df["adfuller"] = len(lags) * [p_value]
         cross_correlation_df["adfuller_v"] = len(lags) * [p_value_velocity]
         if len(cross_correlation_df) > 0:
-            cross_correlation_dfs = pd.concat([cross_correlation_dfs, cross_correlation_df])
+            cross_correlation_dfs = pd.concat(
+                [cross_correlation_dfs, cross_correlation_df]
+            )
     return cross_correlation_dfs
