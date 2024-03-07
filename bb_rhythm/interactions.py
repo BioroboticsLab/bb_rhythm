@@ -7,6 +7,7 @@ from collections import defaultdict
 import cv2
 import os
 import zipfile
+import time
 
 import bb_behavior.db
 
@@ -253,12 +254,12 @@ def swap_focal_bee_to_be_low_circadian(df):
 
 # transform coordinates
 def transform_coordinates(interaction, focal_bee=0):
-    bee0_x = interaction['bee_id0_x_pos_start']
-    bee0_y = interaction['bee_id0_y_pos_start']
-    bee0_theta = interaction['bee_id0_theta_start']
-    bee1_x = interaction['bee_id1_x_pos_start']
-    bee1_y = interaction['bee_id1_y_pos_start']
-    bee1_theta = interaction['bee_id1_theta_start']
+    bee0_x = interaction['x_pos_start_bee0']
+    bee0_y = interaction['y_pos_start_bee0']
+    bee0_theta = interaction['theta_start_bee0']
+    bee1_x = interaction['x_pos_start_bee1']
+    bee1_y = interaction['y_pos_start_bee1']
+    bee1_theta = interaction['theta_start_bee1']
 
     if focal_bee == 0:
         # translation to make bee0 coordinates the origin
@@ -578,7 +579,7 @@ def get_non_focal_bee_mask(x, y, theta):
     return cv2.fillPoly(non_focal_bee, [points], 1)
 
 
-def compute_interaction_points(interaction_df, overlap_dict):
+def compute_interaction_points(interaction_df, overlap_dict, whose_change='focal'):
     # create empty matrix for interaction counts
     counts = np.zeros((9, 16))
 
@@ -591,7 +592,7 @@ def compute_interaction_points(interaction_df, overlap_dict):
         # add count and velocity values
         if np.sum(overlap) >= 1:
             counts += overlap
-            vel = overlap * interaction_df.iloc[i][["vel_change_bee_focal"]][0]
+            vel = overlap * interaction_df.iloc[i][["vel_change_bee_%s" % whose_change]][0]
             if not np.isnan(vel).any():
                 vels += vel
 
@@ -609,6 +610,7 @@ def create_overlap_dict(interaction_df, focal_id):
         overlap_dict[index] = get_bee_body_overlap(interaction_df[index], focal_id).ravel()
         if index % 10000 == 0:
             print('%d/%d' % (index, n_rows))
+
     
     return overlap_dict
 

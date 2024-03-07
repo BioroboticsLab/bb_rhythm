@@ -1102,12 +1102,12 @@ def transform_interaction_df_to_vel_change_matrix_df(vel_change_df_trans):
     return vel_change_matrix_df
 
 
-def transform_interaction_matrix_to_df(vel_change_matrix, count_matrix):
+def transform_interaction_matrix_to_df(vel_change_matrix, count_matrix, whose_change='focal'):
     vel_change_matrix_df = (
         pd.DataFrame(vel_change_matrix)
         .stack()
         .rename_axis(["y", "x"])
-        .reset_index(name="vel_change_bee_focal")
+        .reset_index(name="vel_change_bee_%s" % whose_change)
     )
     count_matrix_df = (
         pd.DataFrame(count_matrix)
@@ -1311,7 +1311,8 @@ def plot_binned_velocity_change(combined_df, plot_path=None, axs=None,
                                        bin_parameter1="r_squared_non_focal",
                                        change_type="vel_change_bee_focal",
                                        fig_label_bin_metric="Circadian power",
-                                       agg_func="median", unit="quantile"):
+                                       agg_func="median", unit="quantile",
+                                       vmin=None, vmax=None):
     
     # Create combination matrix.
     plot_pivot = pd.pivot_table(data=combined_df,
@@ -1319,14 +1320,26 @@ def plot_binned_velocity_change(combined_df, plot_path=None, axs=None,
                                 index=bin_parameter1, columns=bin_parameter2,
                                 aggfunc=agg_func)
 
+    plt.rcParams.update({'font.size': 6})
     # Plot.
+    # vmin = -1.02 if 'start_vel' in bin_parameter1 and change_type == 'vel_change_bee_focal' else None
+    # vmax = 0.4 if 'start_vel' in bin_parameter1 and change_type == 'vel_change_bee_focal' else None
+    # vmin = -17 if 'start_vel' in bin_parameter1 and change_type == 'rel_change_bee_focal' else None
+    # vmax = 70 if 'start_vel' in bin_parameter1 and change_type == 'rel_change_bee_focal' else None
+    
     sns.set_theme()
     if axs is None:
-        fig, axs = plt.subplots(1, 1, figsize=(8, 8))
+        fig, axs = plt.subplots(1, 1, figsize=(6, 6), dpi=300)
     label = 'Number of interactions' if agg_func=='count' else f'{agg_func.capitalize()} velocity change of focal bee [mm/s]'
-    sns.heatmap(plot_pivot, annot=True, cmap="rocket", robust=True, ax=axs,
-                cbar_kws={'label': label})
+    if change_type == 'rel_change_bee_focal':
+        label = 'Relative velocity change of focal bee [%]'
+    sns.heatmap(plot_pivot, annot=True, cmap="viridis", robust=True, ax=axs,
+                cbar_kws={'label': label}, alpha=0.95, vmin=vmin, vmax=vmax)
     axs.invert_yaxis()
-    axs.set(xlabel=f"{fig_label_bin_metric} of focal bee [{unit}]",
-            ylabel=f"{fig_label_bin_metric} of non-focal bee [{unit}]")
-    plt.savefig(plot_path)
+    
+    if unit != '':
+        unit = f'[{unit}]'
+    axs.set(xlabel=f"{fig_label_bin_metric} of focal bee {unit}",
+            ylabel=f"{fig_label_bin_metric} of non-focal bee {unit}")
+    plt.savefig(plot_path + '.png', bbox_inches='tight')
+    plt.savefig(plot_path + '.svg', bbox_inches='tight')
