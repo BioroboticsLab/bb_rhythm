@@ -32,10 +32,32 @@ def plot_velocity_over_time_with_weather(
     y_lim=None,
     axs=None,
 ):
+    """
+
+    :param velocity_df:
+    :param weather_df:
+    :param dt_from:
+    :param dt_to:
+    :param age_map:
+    :param age_map_step_size:
+    :param smoothing:
+    :param rounded:
+    :param round_time:
+    :param age_bins:
+    :param imshow:
+    :param image_path:
+    :param y_lim:
+    :param axs:
+    :return:
+    """
     if axs is None:
         # create figure
         fig, axs = plt.subplots(
-            3, 1, figsize=(16, 10), sharex=True, gridspec_kw={"height_ratios": [8, 1, 1]}
+            3,
+            1,
+            figsize=(16, 10),
+            sharex=True,
+            gridspec_kw={"height_ratios": [8, 1, 1]},
         )
         fig.suptitle("Mean movement speed over time")
         fig.tight_layout()
@@ -101,14 +123,26 @@ def add_grey_nighttime_bars(ax, df):
     for day in np.unique([day.date() for day in df.date]):
         day = datetime.datetime.combine(day, df.date.iloc[0].to_pydatetime().time())
         ax.axvspan(
-            day, day + datetime.timedelta(hours=6), facecolor="lightgrey", alpha=0.5
+            day, day + datetime.timedelta(hours=6), facecolor="lightgrey", edgecolor=None, alpha=0.5, linewidth=0,
         )
         ax.axvspan(
             day + datetime.timedelta(hours=18),
             day + datetime.timedelta(hours=24),
             facecolor="lightgrey",
+            linewidth=0,
+            edgecolor=None,
             alpha=0.5,
         )
+
+
+def add_distance_bars(ax, distance_series, n_bins, palette="Greys"):
+    distances = pd.qcut(distance_series.unique(), n_bins)
+    distance_palette = sns.color_palette(palette, len(distances.unique()))
+    i = 0
+    for distance in sorted(distances.unique()):
+        ax.axvspan(distance.left, distance.right, color=distance_palette[i], alpha=0.3)
+        print(distance)
+        i += 1
 
 
 def plot_velocity_per_age_group(
@@ -127,6 +161,24 @@ def plot_velocity_per_age_group(
     round_time="60min",
     y_lim=None,
 ):
+    """
+
+    :param time_age_velocity_df:
+    :param ax:
+    :param dt_from:
+    :param dt_to:
+    :param age_map:
+    :param age_bins:
+    :param age_map_step_size:
+    :param age_bins_n:
+    :param bin_max_n:
+    :param bin_labels:
+    :param smoothing:
+    :param rounded:
+    :param round_time:
+    :param y_lim:
+    :return:
+    """
     # remove NaNs
     time_age_velocity_df = time_age_velocity_df[~pd.isnull(time_age_velocity_df.age)]
 
@@ -196,7 +248,9 @@ def plot_non_smoothed_age_velocity_over_time(
     )
 
 
-def plot_smoothed_age_velocity_over_time(ax, palette, sorted_by, time_age_velocity_df):
+def plot_smoothed_age_velocity_over_time(
+    ax, palette, sorted_by, time_age_velocity_df, hue_order=None
+):
     # get smoothed velocities
     time_age_velocity_df = get_smoothed_velocities(sorted_by, time_age_velocity_df)
 
@@ -210,6 +264,7 @@ def plot_smoothed_age_velocity_over_time(ax, palette, sorted_by, time_age_veloci
         legend=False,
         ax=ax,
         palette=palette,
+        hue_order=hue_order,
     )
     sns.lineplot(
         data=time_age_velocity_df,
@@ -219,6 +274,7 @@ def plot_smoothed_age_velocity_over_time(ax, palette, sorted_by, time_age_veloci
         hue=sorted_by,
         ax=ax,
         palette=palette,
+        hue_order=hue_order,
     )
 
 
@@ -233,6 +289,13 @@ def get_smoothed_velocities(sorted_by, time_age_velocity_df):
 
 
 def create_age_color_palette(age_map, sorted_by, time_age_velocity_df):
+    """
+
+    :param age_map:
+    :param sorted_by:
+    :param time_age_velocity_df:
+    :return:
+    """
     if age_map is not None:
         palette = sns.color_palette(
             "viridis", len(time_age_velocity_df[sorted_by].unique()) * 4
@@ -248,6 +311,12 @@ def create_age_color_palette(age_map, sorted_by, time_age_velocity_df):
 
 
 def round_time_age_velocity_df(round_time, time_age_velocity_df):
+    """
+
+    :param round_time:
+    :param time_age_velocity_df:
+    :return:
+    """
     time_age_velocity_df["date"] = time_age_velocity_df["date"].dt.round(round_time)
     time_age_velocity_df = (
         time_age_velocity_df.groupby(["date", "age"])["velocity"].mean().reset_index()
@@ -276,9 +345,7 @@ def plot_boxplot(circadianess_df, ax, x="age_bins", order=None):
 def set_fig_props_circadianess_per_age_plot(fig):
     fig.supxlabel("Age [days]")
     fig.supylabel("")
-    fig.suptitle(
-        "Fraction of bees sig. different from shuffled data\n and the shuffled data was chi²"
-    )
+    fig.suptitle("Proportion of circadian tested bees")
 
 
 def plot_raincloudplot(circadianess_df, ax, x="age_bins", hue_norm=None, order=None):
@@ -338,7 +405,13 @@ def plot_raincloudplot(circadianess_df, ax, x="age_bins", hue_norm=None, order=N
 
 
 def plot_violin_swarm_plot(
-    circadianess_df, ax, x="age_bins", size_norm=None, date_ann=False, count_ann=False, order=None
+    circadianess_df,
+    ax,
+    x="age_bins",
+    size_norm=None,
+    date_ann=False,
+    count_ann=False,
+    order=None,
 ):
     # get coordinates from swarm plot
     sns.swarmplot(data=circadianess_df, x=x, y="mean", ax=ax, size=7.0)
@@ -449,7 +522,9 @@ def plot_circadianess_per_age_group(
         )
 
     # Create dataframe with aggregated mean and count of well tested circadianess per day
-    circadianess_df = rhythm.create_mean_count_circadianess_per_day_df(circadianess_df, column=binning.bin_name)
+    circadianess_df = rhythm.create_mean_count_circadianess_per_day_df(
+        circadianess_df, column=binning.bin_name
+    )
 
     # get count norm for shared legend
     min_count = circadianess_df["count"].min()
@@ -682,7 +757,9 @@ def plot_bins_velocity_focal_non_focal(
     rcParams.update({"figure.autolayout": True})
     if axs is None:
         fig, axs = plt.subplots(1, 1, figsize=(7.5, 7.5))
-    sns.heatmap(plot_pivot, annot=True, cmap="rocket", robust=True, norm=norm, ax=axs, cbar=cbar)
+    sns.heatmap(
+        plot_pivot, annot=True, cmap="rocket", robust=True, norm=norm, ax=axs, cbar=cbar
+    )
     axs.invert_yaxis()
     axs.set_title("%s velocity change of focal bee" % fig_title_agg_func)
     axs.set_xticklabels(sorted(combined_df.bins_focal.unique()))
@@ -705,7 +782,7 @@ def prepare_interaction_df_for_plotting(interaction_df, relative_change_clean=Fa
 
     # filter age = 0 out
     if "age_focal" in interaction_df.columns:
-            interaction_df = interaction_df[
+        interaction_df = interaction_df[
             (interaction_df["age_focal"] > 0) & (interaction_df["age_non_focal"] > 0)
         ]
 
@@ -808,7 +885,7 @@ def apply_three_group_age_map_for_plotting_phase(circadianess_df):
         x=circadianess_df["age"], bins=[-1, 0, 10, 25, max_age]
     )
 
-    age_map = {
+    age_dict = {
         "(0.0, 10.0]": "Age < 10 days",
         "(10.0, 25.0]": "Age >= 10, < 25 days",
         ("(25.0, %s]" % str(float(max_age))): "Age >= 25 days",
@@ -878,9 +955,7 @@ def plot_phase_per_age_group(
     )
 
     # map time interval of [-pi, pi] to 24h
-    circadianess_df = rhythm.add_phase_plt_to_df_cosinor(
-        circadianess_df
-    )
+    circadianess_df = rhythm.add_phase_plt_to_df_cosinor(circadianess_df)
 
     # plot
     plot_histogram_phase_dist(
@@ -1099,12 +1174,12 @@ def transform_interaction_df_to_vel_change_matrix_df(vel_change_df_trans):
     return vel_change_matrix_df
 
 
-def transform_interaction_matrix_to_df(vel_change_matrix, count_matrix):
+def transform_interaction_matrix_to_df(vel_change_matrix, count_matrix, whose_change='focal'):
     vel_change_matrix_df = (
         pd.DataFrame(vel_change_matrix)
         .stack()
         .rename_axis(["y", "x"])
-        .reset_index(name="vel_change_bee_focal")
+        .reset_index(name="vel_change_bee_%s" % whose_change)
     )
     count_matrix_df = (
         pd.DataFrame(count_matrix)
@@ -1236,39 +1311,61 @@ def plot_circadian_fit(
 
 
 def nan_tolerant_gaussian_filtering(U, sigma):
-    V=U.copy()
-    V[np.isnan(U)]=0
-    VV=filters.gaussian(V,sigma=sigma)
+    V = U.copy()
+    V[np.isnan(U)] = 0
+    VV = filters.gaussian(V, sigma=sigma)
 
-    W=0*U.copy()+1
-    W[np.isnan(U)]=0
-    WW=filters.gaussian(W,sigma=sigma)
+    W = 0 * U.copy() + 1
+    W[np.isnan(U)] = 0
+    WW = filters.gaussian(W, sigma=sigma)
 
-    return VV/WW
+    return VV / WW
 
-def plot_fit_params_per_loc(df, variable, xrange, yrange, label=None, cmap=None,
-                      vmin=None, vmax=None, center=None, robust=True, smooth=False,
-                      cm=' [cm]', transparency=False, alpha_var='n_samples',
-                      ticks=None, save_to='phase_per_pos.png'):
 
-    df[['x_grid', 'y_grid']] = df[['x_grid', 'y_grid']].astype(int)
+def plot_fit_params_per_loc(
+    df,
+    variable,
+    xrange,
+    yrange,
+    label=None,
+    cmap=None,
+    vmin=None,
+    vmax=None,
+    center=None,
+    robust=True,
+    smooth=False,
+    cm=" [cm]",
+    transparency=False,
+    alpha_var="n_samples",
+    ticks=None,
+    save_to="phase_per_pos.png",
+):
+    df[["x_grid", "y_grid"]] = df[["x_grid", "y_grid"]].astype(int)
 
-    fig, axs = plt.subplots(1,2,figsize=(14,5))
-    cbar_ax = fig.add_axes([1, .23, .03, .6])
+    fig, axs = plt.subplots(1, 2, figsize=(14, 5))
+    cbar_ax = fig.add_axes([1, 0.23, 0.03, 0.6])
 
-    for side in [0,1]:
-        df_grid = pd.pivot(data=df[df['side'] == side], index='y_grid',
-                           columns='x_grid', values=variable)
+    for side in [0, 1]:
+        df_grid = pd.pivot(
+            data=df[df["side"] == side],
+            index="y_grid",
+            columns="x_grid",
+            values=variable,
+        )
 
         # set x and y range
-        df_grid = df_grid.loc[yrange[0]:yrange[1],xrange[0]:xrange[1]]
+        df_grid = df_grid.loc[yrange[0] : yrange[1], xrange[0] : xrange[1]]
 
         alpha_grid = None
 
         if transparency:
-            alpha_grid = pd.pivot(data=df[df['side'] == side], index='y_grid',
-                                  columns='x_grid', values=alpha_var).fillna(0)
-            alpha_grid = alpha_grid.loc[yrange[0]:yrange[1],xrange[0]:xrange[1]]
+            alpha_grid = pd.pivot(
+                data=df[df["side"] == side],
+                index="y_grid",
+                columns="x_grid",
+                values=alpha_var,
+            ).fillna(0)
+            alpha_grid = alpha_grid.loc[yrange[0] : yrange[1], xrange[0] : xrange[1]]
 
             # scale alpha values between zero and one
             alpha_grid = alpha_grid.to_numpy()
@@ -1277,27 +1374,77 @@ def plot_fit_params_per_loc(df, variable, xrange, yrange, label=None, cmap=None,
         if smooth:
             grid = df_grid.to_numpy()
             grid = nan_tolerant_gaussian_filtering(grid, sigma=1)
-            df_grid.loc[:,:] = grid
+            df_grid.loc[:, :] = grid
         # df_grid = df_grid.interpolate(method='linear')
         # df_grid = df_grid.fillna(method='bfill')
 
         if not label:
-          label = variable
+            label = variable
 
-        sns.heatmap(df_grid, vmin=vmin, vmax=vmax, ax=axs[side],
-                    xticklabels=5, yticklabels=5, center=center,
-                    cmap=cmap, cbar=side, cbar_kws={'label':label, 'ticks':ticks},
-                    cbar_ax=cbar_ax, robust=robust, alpha=alpha_grid)
+        sns.heatmap(
+            df_grid,
+            vmin=vmin,
+            vmax=vmax,
+            ax=axs[side],
+            xticklabels=5,
+            yticklabels=5,
+            center=center,
+            cmap=cmap,
+            cbar=side,
+            cbar_kws={"label": label, "ticks": ticks},
+            cbar_ax=cbar_ax,
+            robust=robust,
+            alpha=alpha_grid,
+        )
 
-        axs[side].set_xlabel('x position' + cm)
-        ylabel = 'y position' + cm if side == 0 else ''
-        title = 'View on side %d' % side
+        axs[side].set_xlabel("x position" + cm)
+        ylabel = "y position" + cm if side == 0 else ""
+        title = "View on side %d" % side
         axs[side].set_ylabel(ylabel)
         axs[side].set_title(title)
 
     plt.tight_layout()
-    
+
     if save_to:
         plt.savefig(save_to)
-        
+
     plt.show()
+    
+
+def plot_binned_velocity_change(combined_df, plot_path=None, axs=None,
+                                       bin_parameter2="r_squared_focal",
+                                       bin_parameter1="r_squared_non_focal",
+                                       change_type="vel_change_bee_focal",
+                                       fig_label_bin_metric="Circadian power",
+                                       agg_func="median", unit="quantile",
+                                       vmin=None, vmax=None):
+    
+    # Create combination matrix.
+    plot_pivot = pd.pivot_table(data=combined_df,
+                                values=change_type,
+                                index=bin_parameter1, columns=bin_parameter2,
+                                aggfunc=agg_func)
+
+    plt.rcParams.update({'font.size': 6})
+    # Plot.
+    # vmin = -1.02 if 'start_vel' in bin_parameter1 and change_type == 'vel_change_bee_focal' else None
+    # vmax = 0.4 if 'start_vel' in bin_parameter1 and change_type == 'vel_change_bee_focal' else None
+    # vmin = -17 if 'start_vel' in bin_parameter1 and change_type == 'rel_change_bee_focal' else None
+    # vmax = 70 if 'start_vel' in bin_parameter1 and change_type == 'rel_change_bee_focal' else None
+    
+    sns.set_theme()
+    if axs is None:
+        fig, axs = plt.subplots(1, 1, figsize=(6, 6), dpi=300)
+    label = 'Number of interactions' if agg_func=='count' else f'{agg_func.capitalize()} velocity change of focal bee [mm/s]'
+    if change_type == 'rel_change_bee_focal':
+        label = 'Relative velocity change of focal bee [%]'
+    sns.heatmap(plot_pivot, annot=True, cmap="viridis", robust=True, ax=axs,
+                cbar_kws={'label': label}, alpha=0.95, vmin=vmin, vmax=vmax)
+    axs.invert_yaxis()
+    
+    if unit != '':
+        unit = f'[{unit}]'
+    axs.set(xlabel=f"{fig_label_bin_metric} of focal bee {unit}",
+            ylabel=f"{fig_label_bin_metric} of non-focal bee {unit}")
+    plt.savefig(plot_path + '.png', bbox_inches='tight')
+    plt.savefig(plot_path + '.svg', bbox_inches='tight')
