@@ -123,7 +123,12 @@ def add_grey_nighttime_bars(ax, df):
     for day in np.unique([day.date() for day in df.date]):
         day = datetime.datetime.combine(day, df.date.iloc[0].to_pydatetime().time())
         ax.axvspan(
-            day, day + datetime.timedelta(hours=6), facecolor="lightgrey", edgecolor=None, alpha=0.5, linewidth=0,
+            day,
+            day + datetime.timedelta(hours=6),
+            facecolor="lightgrey",
+            edgecolor=None,
+            alpha=0.5,
+            linewidth=0,
         )
         ax.axvspan(
             day + datetime.timedelta(hours=18),
@@ -281,8 +286,12 @@ def plot_smoothed_age_velocity_over_time(
 def get_smoothed_velocities(sorted_by, time_age_velocity_df):
     time_age_velocity_df.loc[:, "velocity_smoothed"] = time_age_velocity_df["velocity"]
     for age_bin in time_age_velocity_df[sorted_by].unique():
-        time_age_velocity_df.loc[time_age_velocity_df[sorted_by] == age_bin, "velocity_smoothed"] = gaussian_filter1d(
-            time_age_velocity_df["velocity"][time_age_velocity_df[sorted_by] == age_bin],
+        time_age_velocity_df.loc[
+            time_age_velocity_df[sorted_by] == age_bin, "velocity_smoothed"
+        ] = gaussian_filter1d(
+            time_age_velocity_df["velocity"][
+                time_age_velocity_df[sorted_by] == age_bin
+            ],
             sigma=4,
         )
     return time_age_velocity_df
@@ -1174,7 +1183,9 @@ def transform_interaction_df_to_vel_change_matrix_df(vel_change_df_trans):
     return vel_change_matrix_df
 
 
-def transform_interaction_matrix_to_df(vel_change_matrix, count_matrix, whose_change='focal'):
+def transform_interaction_matrix_to_df(
+    vel_change_matrix, count_matrix, whose_change="focal"
+):
     vel_change_matrix_df = (
         pd.DataFrame(vel_change_matrix)
         .stack()
@@ -1409,42 +1420,124 @@ def plot_fit_params_per_loc(
         plt.savefig(save_to)
 
     plt.show()
-    
 
-def plot_binned_velocity_change(combined_df, plot_path=None, axs=None,
-                                       bin_parameter2="r_squared_focal",
-                                       bin_parameter1="r_squared_non_focal",
-                                       change_type="vel_change_bee_focal",
-                                       fig_label_bin_metric="Circadian power",
-                                       agg_func="median", unit="quantile",
-                                       vmin=None, vmax=None):
-    
+
+def plot_binned_velocity_change(
+    combined_df,
+    plot_path=None,
+    axs=None,
+    bin_parameter2="r_squared_focal",
+    bin_parameter1="r_squared_non_focal",
+    change_type="vel_change_bee_focal",
+    fig_label_bin_metric="Circadian power",
+    agg_func="median",
+    unit="quantile",
+    vmin=None,
+    vmax=None,
+):
     # Create combination matrix.
-    plot_pivot = pd.pivot_table(data=combined_df,
-                                values=change_type,
-                                index=bin_parameter1, columns=bin_parameter2,
-                                aggfunc=agg_func)
+    plot_pivot = pd.pivot_table(
+        data=combined_df,
+        values=change_type,
+        index=bin_parameter1,
+        columns=bin_parameter2,
+        aggfunc=agg_func,
+    )
 
-    plt.rcParams.update({'font.size': 6})
+    plt.rcParams.update({"font.size": 6})
     # Plot.
     # vmin = -1.02 if 'start_vel' in bin_parameter1 and change_type == 'vel_change_bee_focal' else None
     # vmax = 0.4 if 'start_vel' in bin_parameter1 and change_type == 'vel_change_bee_focal' else None
     # vmin = -17 if 'start_vel' in bin_parameter1 and change_type == 'rel_change_bee_focal' else None
     # vmax = 70 if 'start_vel' in bin_parameter1 and change_type == 'rel_change_bee_focal' else None
-    
+
     sns.set_theme()
     if axs is None:
         fig, axs = plt.subplots(1, 1, figsize=(6, 6), dpi=300)
-    label = 'Number of interactions' if agg_func=='count' else f'{agg_func.capitalize()} velocity change of focal bee [mm/s]'
-    if change_type == 'rel_change_bee_focal':
-        label = 'Relative velocity change of focal bee [%]'
-    sns.heatmap(plot_pivot, annot=True, cmap="viridis", robust=True, ax=axs,
-                cbar_kws={'label': label}, alpha=0.95, vmin=vmin, vmax=vmax)
+    label = (
+        "Number of interactions"
+        if agg_func == "count"
+        else f"{agg_func.capitalize()} velocity change of focal bee [mm/s]"
+    )
+    if change_type == "rel_change_bee_focal":
+        label = "Relative velocity change of focal bee [%]"
+    sns.heatmap(
+        plot_pivot,
+        annot=True,
+        cmap="viridis",
+        robust=True,
+        ax=axs,
+        cbar_kws={"label": label},
+        alpha=0.95,
+        vmin=vmin,
+        vmax=vmax,
+    )
     axs.invert_yaxis()
-    
-    if unit != '':
-        unit = f'[{unit}]'
-    axs.set(xlabel=f"{fig_label_bin_metric} of focal bee {unit}",
-            ylabel=f"{fig_label_bin_metric} of non-focal bee {unit}")
-    plt.savefig(plot_path + '.png', bbox_inches='tight')
-    plt.savefig(plot_path + '.svg', bbox_inches='tight')
+
+    if unit != "":
+        unit = f"[{unit}]"
+    axs.set(
+        xlabel=f"{fig_label_bin_metric} of focal bee {unit}",
+        ylabel=f"{fig_label_bin_metric} of non-focal bee {unit}",
+    )
+    plt.savefig(plot_path + ".png", bbox_inches="tight")
+    plt.savefig(plot_path + ".svg", bbox_inches="tight")
+
+
+def whiten_out_low_sample_size_areas(
+    ax: matplotlib.axes.Axes, df: pd.DataFrame, distance_column: str, alpha_column: str
+):
+    """
+
+    :param ax:
+    :param dist:
+    :param distance_column:
+    :param alpha_column:
+    :return:
+    """
+    distances = pd.qcut(df[distance_column].unique(), len(df[distance_column].unique()))
+    alpha = (
+        df.groupby([distance_column])[alpha_column]
+        .mean()
+        .reset_index()
+        .sort_values(by=distance_column)[alpha_column]
+        .round(2)
+    )
+    alpha = (alpha - alpha.min()) / (alpha.max() - alpha.min())
+    i = 0
+    for distance in sorted(distances.unique()):
+        if i == 0:
+            print(alpha[i])
+            ax.axvspan(
+                distance.left - 5,
+                distance.right,
+                color="white",
+                edgecolor=None,
+                facecolor=None,
+                linewidth=0,
+                alpha=alpha[i],
+                zorder=2,
+            )
+        elif i == (len(distances.unique()) - 1):
+            ax.axvspan(
+                distance.left,
+                distance.right + 10,
+                color="white",
+                edgecolor=None,
+                facecolor=None,
+                linewidth=0,
+                alpha=alpha[i],
+                zorder=2,
+            )
+        else:
+            ax.axvspan(
+                distance.left,
+                distance.right,
+                color="white",
+                edgecolor=None,
+                facecolor=None,
+                linewidth=0,
+                alpha=alpha[i],
+                zorder=2,
+            )
+        i += 1

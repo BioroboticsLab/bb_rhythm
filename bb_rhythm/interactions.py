@@ -15,15 +15,15 @@ import bb_behavior.db
 
 
 def cluster_interactions_over_time(
-        iterable,
-        min_gap_size=datetime.timedelta(seconds=1),
-        min_event_duration=None,
-        y="y",
-        time="time",
-        color="color",
-        loc_info_0="loc_info_0",
-        loc_info_1="loc_info_1",
-        fill_gaps=True,
+    iterable,
+    min_gap_size=datetime.timedelta(seconds=1),
+    min_event_duration=None,
+    y="y",
+    time="time",
+    color="color",
+    loc_info_0="loc_info_0",
+    loc_info_1="loc_info_1",
+    fill_gaps=True,
 ):
     """
 
@@ -62,8 +62,8 @@ def cluster_interactions_over_time(
                 return False
             last = last_x_for_y[y_value][-1]
             return (
-                    min_event_duration
-                    and (last["dt_end"] - last["dt_start"]) < min_event_duration
+                min_event_duration
+                and (last["dt_end"] - last["dt_start"]) < min_event_duration
             )
 
         def push():
@@ -95,7 +95,7 @@ def cluster_interactions_over_time(
         if min_gap_size is not None and delay > min_gap_size:
             if fill_gaps:
                 overwrite_possible = (
-                        should_overwrite_last_event() and len(last_x_for_y[y_value]) >= 2
+                    should_overwrite_last_event() and len(last_x_for_y[y_value]) >= 2
                 )
                 if overwrite_possible:
                     last_x = last_x_for_y[y_value][-2]
@@ -125,8 +125,8 @@ def cluster_interactions_over_time(
         # Check if last session doesn't meet min length criteria.
         last = sessions[-1]
         if (
-                min_event_duration
-                and (last["dt_end"] - last["dt_start"]) < min_event_duration
+            min_event_duration
+            and (last["dt_end"] - last["dt_start"]) < min_event_duration
         ):
             del sessions[-1]
 
@@ -179,9 +179,9 @@ def extract_parameters_from_events(event):
 
 
 def extract_parameters_from_random_samples(
-        event,
-        interaction_start,
-        interaction_end,
+    event,
+    interaction_start,
+    interaction_end,
 ):
     """
 
@@ -257,9 +257,7 @@ def get_all_interactions_over_time(interaction_generator) -> list:
         event_dict = clustered_interaction_events[key]
         if event_dict:
             # extract event parameters as interactions
-            interaction_dict = extract_parameters_from_events(
-                event_dict[0]
-            )
+            interaction_dict = extract_parameters_from_events(event_dict[0])
             extracted_interactions_lst.append(interaction_dict)
     return extracted_interactions_lst
 
@@ -303,8 +301,9 @@ def add_post_interaction_velocity_change(interaction_events, velocity_df_path=No
         )
 
 
-def fetch_interactions_per_frame(cam_ids: list, cursor, dt_from: datetime.datetime,
-                                 dt_to: datetime.datetime) -> list:
+def fetch_interactions_per_frame(
+    cam_ids: list, cursor, dt_from: datetime.datetime, dt_to: datetime.datetime
+) -> list:
     """
 
     :param cam_ids:
@@ -316,9 +315,7 @@ def fetch_interactions_per_frame(cam_ids: list, cursor, dt_from: datetime.dateti
     interactions_lst = []
     for cam_id in cam_ids:
         # get frames in time window
-        frame_data = bb_behavior.db.get_frames(
-            cam_id, dt_from, dt_to, cursor=cursor
-        )
+        frame_data = bb_behavior.db.get_frames(cam_id, dt_from, dt_to, cursor=cursor)
         if not frame_data:
             continue
 
@@ -344,7 +341,7 @@ def fetch_interactions_per_frame(cam_ids: list, cursor, dt_from: datetime.dateti
 
 
 def get_velocity_change_per_bee(
-        bee_id, interaction_start, interaction_end, velocities_path=None
+    bee_id, interaction_start, interaction_end, velocities_path=None
 ):
     """
 
@@ -379,26 +376,26 @@ def get_velocity_change_per_bee(
     vel_before = np.mean(
         velocities[
             (
-                    velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
-                    >= dt_before
+                velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
+                >= dt_before
             )
             & (
-                    velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
-                    < interaction_start
+                velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
+                < interaction_start
             )
-            ]["velocity"]
+        ]["velocity"]
     )
     vel_after = np.mean(
         velocities[
             (
-                    velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
-                    > interaction_end
+                velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
+                > interaction_end
             )
             & (
-                    velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
-                    <= dt_after
+                velocities["datetime"].map(lambda x: x.replace(tzinfo=pytz.UTC))
+                <= dt_after
             )
-            ]["velocity"]
+        ]["velocity"]
     )
     del velocities
     vel_change = vel_after - vel_before
@@ -410,9 +407,9 @@ def get_velocity_change_per_bee(
 
 
 def extract_parameters_from_random_samples(
-        event,
-        interaction_start,
-        interaction_end,
+    event,
+    interaction_start,
+    interaction_end,
 ):
     return {
         "bee_id0": event[0][0],
@@ -480,12 +477,12 @@ def swap_focal_bee_to_be_low_circadian(df):
 
 # transform coordinates
 def transform_coordinates(interaction, focal_bee=0):
-    bee0_x = interaction['x_pos_start_bee0']
-    bee0_y = interaction['y_pos_start_bee0']
-    bee0_theta = interaction['theta_start_bee0']
-    bee1_x = interaction['x_pos_start_bee1']
-    bee1_y = interaction['y_pos_start_bee1']
-    bee1_theta = interaction['theta_start_bee1']
+    bee0_x = interaction["x_pos_start_bee0"]
+    bee0_y = interaction["y_pos_start_bee0"]
+    bee0_theta = interaction["theta_start_bee0"]
+    bee1_x = interaction["x_pos_start_bee1"]
+    bee1_y = interaction["y_pos_start_bee1"]
+    bee1_theta = interaction["theta_start_bee1"]
 
     if focal_bee == 0:
         # translation to make bee0 coordinates the origin
@@ -544,7 +541,7 @@ def get_dist_special_coord(row):
 
 
 def get_duration(
-        df, end_parameter="interaction_end", start_parameter="interaction_start"
+    df, end_parameter="interaction_end", start_parameter="interaction_start"
 ):
     df["duration"] = [
         row.total_seconds() for row in (df[end_parameter] - df[start_parameter])
@@ -820,7 +817,7 @@ def get_non_focal_bee_mask(x, y, theta):
     return cv2.fillPoly(non_focal_bee, [points], 1)
 
 
-def compute_interaction_points(interaction_df, overlap_dict, whose_change='focal'):
+def compute_interaction_points(interaction_df, overlap_dict, whose_change="focal"):
     # create empty matrix for interaction counts
     counts = np.zeros((9, 16))
 
@@ -828,12 +825,15 @@ def compute_interaction_points(interaction_df, overlap_dict, whose_change='focal
     vels = np.zeros((9, 16))
 
     for i in range(len(interaction_df)):
-        overlap = overlap_dict[interaction_df.index[i]].reshape((9,16))
+        overlap = overlap_dict[interaction_df.index[i]].reshape((9, 16))
 
         # add count and velocity values
         if np.sum(overlap) >= 1:
             counts += overlap
-            vel = overlap * interaction_df.iloc[i][["vel_change_bee_%s" % whose_change]][0]
+            vel = (
+                overlap
+                * interaction_df.iloc[i][["vel_change_bee_%s" % whose_change]][0]
+            )
             if not np.isnan(vel).any():
                 vels += vel
 
@@ -844,15 +844,16 @@ def compute_interaction_points(interaction_df, overlap_dict, whose_change='focal
 def create_overlap_dict(interaction_df, focal_id):
     overlap_dict = {}
     n_rows = len(interaction_df)
-    
-    interaction_df = interaction_df.to_dict(orient='index')
-    
-    for index in interaction_df:
-        overlap_dict[index] = get_bee_body_overlap(interaction_df[index], focal_id).ravel()
-        if index % 10000 == 0:
-            print('%d/%d' % (index, n_rows))
 
-    
+    interaction_df = interaction_df.to_dict(orient="index")
+
+    for index in interaction_df:
+        overlap_dict[index] = get_bee_body_overlap(
+            interaction_df[index], focal_id
+        ).ravel()
+        if index % 10000 == 0:
+            print("%d/%d" % (index, n_rows))
+
     return overlap_dict
 
 
@@ -890,7 +891,7 @@ def filter_combined_interaction_df_by_overlaps(combined_df, overlap_df):
 
 
 def extract_parameters_from_random_sampled_interactions(
-        event, interaction_start, interaction_end
+    event, interaction_start, interaction_end
 ):
     return {
         "bee_id0": event[0][0],
@@ -935,24 +936,24 @@ def get_intermediate_time_windows_df(df, dt_from, dt_to):
         current_interaction_end = group["interaction_end"].iloc[0]
         for index, row in group.iterrows():
             if in_between(
-                    current_interaction_start,
-                    row["interaction_start"],
-                    current_interaction_end,
-                    row["interaction_end"],
+                current_interaction_start,
+                row["interaction_start"],
+                current_interaction_end,
+                row["interaction_end"],
             ):
                 continue
             if overlap_after(
-                    current_interaction_start,
-                    row["interaction_start"],
-                    current_interaction_end,
-                    row["interaction_end"],
+                current_interaction_start,
+                row["interaction_start"],
+                current_interaction_end,
+                row["interaction_end"],
             ):
                 current_interaction_end = row["interaction_end"]
             if after(
-                    current_interaction_start,
-                    row["interaction_start"],
-                    current_interaction_end,
-                    row["interaction_end"],
+                current_interaction_start,
+                row["interaction_start"],
+                current_interaction_end,
+                row["interaction_end"],
             ):
                 intermediate_df = pd.concat(
                     [
@@ -982,27 +983,27 @@ def get_intermediate_time_windows_df(df, dt_from, dt_to):
 
 
 def in_between(
-        interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1
+    interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1
 ):
     # assuming interaction_start_0 <= interaction_start_1
     return (interaction_start_0 <= interaction_start_1) & (
-            interaction_end_0 >= interaction_end_1
+        interaction_end_0 >= interaction_end_1
     )
 
 
 def overlap_after(
-        interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1
+    interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1
 ):
     # assuming interaction_start_0 <= interaction_start_1
     return (
-            (interaction_start_0 <= interaction_start_1)
-            & (interaction_start_1 < interaction_end_0)
-            & (interaction_end_0 < interaction_end_1)
+        (interaction_start_0 <= interaction_start_1)
+        & (interaction_start_1 < interaction_end_0)
+        & (interaction_end_0 < interaction_end_1)
     )
 
 
 def after(
-        interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1
+    interaction_start_0, interaction_start_1, interaction_end_0, interaction_end_1
 ):
     # assuming interaction_start_0 <= interaction_start_1
     return interaction_end_0 < interaction_start_1
@@ -1052,12 +1053,16 @@ def add_circadianess_to_interaction_df(interactions_df, circadian_df):
         + datetime.timedelta(hours=12)
         for interaction in interactions_df["interaction_start"]
     ]
-    
+
     fit_features = ["phase", "r_squared", "amplitude", "p_value", "age"]
-    
-    interactions_df = add_features(interactions_df, circadian_df, bee_id=0, features=fit_features)
-    interactions_df = add_features(interactions_df, circadian_df, bee_id=1, features=fit_features)
-    
+
+    interactions_df = add_features(
+        interactions_df, circadian_df, bee_id=0, features=fit_features
+    )
+    interactions_df = add_features(
+        interactions_df, circadian_df, bee_id=1, features=fit_features
+    )
+
     interactions_df.drop(columns=["date"], inplace=True)
 
     return interactions_df
@@ -1082,10 +1087,10 @@ def add_feature_to_interaction_df(interactions_df, feature_df, features):
 
 def get_start_velocity(df):
     df["velocity_start_focal"] = (
-            df["vel_change_bee_focal"] * 100 / df["rel_change_bee_focal"]
+        df["vel_change_bee_focal"] * 100 / df["rel_change_bee_focal"]
     )
     df["velocity_start_non_focal"] = (
-            df["vel_change_bee_non_focal"] * 100 / df["rel_change_bee_non_focal"]
+        df["vel_change_bee_non_focal"] * 100 / df["rel_change_bee_non_focal"]
     )
 
 
@@ -1133,7 +1138,7 @@ def add_velocity_change_to_intermediate_time_windows_df(intermediate_df, velocit
 
 
 def add_circadian_meta_data_to_intermediate_time_windows_df(
-        intermediate_df, interaction_df
+    intermediate_df, interaction_df
 ):
     meta_params = ["age", "amplitude", "circadianess", "p_value"]
     meta_params_dict = {}
@@ -1146,10 +1151,10 @@ def add_circadian_meta_data_to_intermediate_time_windows_df(
                     interaction_df[
                         (row["bee_id"] == interaction_df["bee_id_focal"])
                         & (
-                                row["non_interaction_start"].to_pydatetime().date()
-                                == interaction_df["interaction_start"].dt.date
+                            row["non_interaction_start"].to_pydatetime().date()
+                            == interaction_df["interaction_start"].dt.date
                         )
-                        ][param + "_focal"]
+                    ][param + "_focal"]
                     .sample(n=1)
                     .iloc[0]
                 )
@@ -1294,7 +1299,7 @@ def assign_random_bees_as_interactions(db, df_grouped, cam_ids=None):
             try:
                 # pick two random samples
                 interaction_dict = extract_parameters_from_random_samples(
-                    random_sampled_interactions[index: index + 2],
+                    random_sampled_interactions[index : index + 2],
                     interaction_start,
                     interaction_end,
                 )
@@ -1306,7 +1311,9 @@ def assign_random_bees_as_interactions(db, df_grouped, cam_ids=None):
     return interactions
 
 
-def get_sub_interaction_df_for_null_model_sampling(dt_from, dt_to, interaction_model_path):
+def get_sub_interaction_df_for_null_model_sampling(
+    dt_from, dt_to, interaction_model_path
+):
     """
 
     :param dt_from:
@@ -1328,7 +1335,7 @@ def get_sub_interaction_df_for_null_model_sampling(dt_from, dt_to, interaction_m
     # subset time window
     df = df_all[
         (df_all["interaction_start"] >= dt_from) & (df_all["interaction_end"] < dt_to)
-        ]
+    ]
     del df_all
     # round per second and group df
     df["interaction_start"] = df["interaction_start"].dt.round("1S")

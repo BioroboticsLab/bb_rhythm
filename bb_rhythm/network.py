@@ -4,8 +4,9 @@ from treelib import Tree
 import treelib
 from slurmhelper import SLURMJob
 
+
 class Interaction(object):
-    #TODO: make uniform series or dataframe as input
+    # TODO: make uniform series or dataframe as input
     def __init__(self, interaction_df_row):
         if type(interaction_df_row) == pd.DataFrame:
             self.phase = interaction_df_row["phase"].iloc[0]
@@ -165,7 +166,11 @@ def add_children(tree, parent, interaction_df, time_threshold, vel_change_thresh
             try:
                 tree.create_node(
                     int(row["bee_id_non_focal"]),
-                    "%d_%s" % (int(row["bee_id_non_focal"]), str(row["datetime"] + datetime.timedelta(microseconds=ms))),
+                    "%d_%s"
+                    % (
+                        int(row["bee_id_non_focal"]),
+                        str(row["datetime"] + datetime.timedelta(microseconds=ms)),
+                    ),
                     parent=parent.identifier,
                     data=Interaction(row),
                 )
@@ -210,28 +215,40 @@ def tree_to_path_df(slurm_job: SLURMJob) -> pd.DataFrame:
                 node = result.get_node(node)
                 if not is_root:
                     parent = [result.get_node(node.predecessor(result.identifier)).tag]
-                    time_gap = [result.get_node(node.predecessor(result.identifier)).data.datetime - node.data.datetime]
+                    time_gap = [
+                        result.get_node(
+                            node.predecessor(result.identifier)
+                        ).data.datetime
+                        - node.data.datetime
+                    ]
                 else:
                     parent = [None]
                     time_gap = [datetime.timedelta(minutes=0)]
-                path_df = pd.concat([path_df, pd.DataFrame({
-                    "bee_id": [node.tag],
-                    "datetime": [node.data.datetime],
-                    "phase": [node.data.phase],
-                    "x_pos": [node.data.x_pos],
-                    "y_pos": [node.data.y_pos],
-                    "vel_change_parent": [node.data.vel_change_parent],
-                    "r_squared": [node.data.r_squared],
-                    "age": [node.data.age],
-                    "is_root": [is_root],
-                    "depth": [i],
-                    "is_leaf": [node.is_leaf()],
-                    "n_children": [len(node.successors(result.identifier))],
-                    "parent": parent,
-                    "tree_id": [tree_id],
-                    "time_gap": time_gap,
-                    "path_id": [path_id],
-                })])
+                path_df = pd.concat(
+                    [
+                        path_df,
+                        pd.DataFrame(
+                            {
+                                "bee_id": [node.tag],
+                                "datetime": [node.data.datetime],
+                                "phase": [node.data.phase],
+                                "x_pos": [node.data.x_pos],
+                                "y_pos": [node.data.y_pos],
+                                "vel_change_parent": [node.data.vel_change_parent],
+                                "r_squared": [node.data.r_squared],
+                                "age": [node.data.age],
+                                "is_root": [is_root],
+                                "depth": [i],
+                                "is_leaf": [node.is_leaf()],
+                                "n_children": [len(node.successors(result.identifier))],
+                                "parent": parent,
+                                "tree_id": [tree_id],
+                                "time_gap": time_gap,
+                                "path_id": [path_id],
+                            }
+                        ),
+                    ]
+                )
                 i += 1
             path_id += 1
         tree_id += 1

@@ -688,8 +688,8 @@ def get_raw_phase_df(file, velocities_path):
         ]
     )
     return df_max_vel
-    
-    
+
+
 def create_10_min_mean_velocity_df_per_bee(
     bee_id, dt_from, dt_to, velocity_df_path=None, cursor=None
 ):
@@ -844,6 +844,6 @@ def create_cosinor_df_per_bee_time_period(
 
 
 def create_grid_from_df(df, var, aggfunc):
-    
-    return pd.pivot_table(df, index='y', aggfunc=aggfunc,
-                   columns='x', values=var).to_numpy()
+    return pd.pivot_table(
+        df, index="y", aggfunc=aggfunc, columns="x", values=var
+    ).to_numpy()
