@@ -1255,7 +1255,6 @@ def get_min_and_max_pos(path):
 
 
 def assign_random_bees_as_interactions(db, df_grouped, cam_ids=None):
-    # TODO: modify cam ids
     """
 
     :param db:
@@ -1270,10 +1269,12 @@ def assign_random_bees_as_interactions(db, df_grouped, cam_ids=None):
         interaction_start = group["interaction_start"]
         interaction_end = group["interaction_end"]
         delta = datetime.timedelta(seconds=1)
+        min_cam_id = min(cam_ids)
+        max_cam_id = max(cam_ids)
         sql_statement = """SELECT A.bee_id, A.x_pos, A.y_pos, A.orientation, B.x_pos, B.y_pos, B.orientation
                                FROM {} A, {} B
                                WHERE A.timestamp BETWEEN %s AND %s 
-                                     AND A.cam_id BETWEEN 2 AND 3 
+                                     AND A.cam_id BETWEEN %s AND %s 
                                      AND A.bee_id_confidence >= 0.01 
                                      AND B.timestamp BETWEEN %s AND %s 
                                      AND B.cam_id BETWEEN 2 AND 3 
@@ -1288,6 +1289,8 @@ def assign_random_bees_as_interactions(db, df_grouped, cam_ids=None):
             (
                 interaction_start,
                 interaction_start + delta,
+                str(min_cam_id),
+                str(max_cam_id),
                 interaction_end,
                 interaction_end + delta,
                 str(2 * group["bee_id0"]),
