@@ -23,7 +23,7 @@ setup(
     description="BeesBook rhythmicity, interaction, and behavior analysis",
     author="Julia Mellert, Weronika Klos",
     author_email="julia.mellert@fu-berlin.de",
-    url="https://github.com/JuliaMelle01/bb_rhythm/",
+    url="https://github.com/BioroboticsLab/bb_rhythm/",
     install_requires=reqs,
     dependency_links=dep_links,
     packages=find_packages(),

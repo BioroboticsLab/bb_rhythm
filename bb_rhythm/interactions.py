@@ -3,12 +3,8 @@ import datetime
 import numpy as np
 import itertools
 import pandas as pd
-from collections import defaultdict
 import cv2
 import os
-import zipfile
-import time
-import networkx as nx
 import pytz
 
 import bb_behavior.db
@@ -1104,24 +1100,6 @@ def filter_overlap(interaction_df):
     return interaction_df
 
 
-def combine_interactions_from_slurm_job(job, slurm_path, circadian_df):
-    file_list = [filename for filename in os.listdir(slurm_path)]
-    dfs = []
-    for filename in file_list:
-        try:
-            kwargs, results = job.load_kwargs_results_from_result_file(filename)
-            dfs.extend(results)
-        except (zipfile.BadZipFile, KeyError, EOFError) as e:
-            # This probably means that a job failed while writing the zipfile (and is thus still open).
-            continue
-    interactions_df = pd.DataFrame(dfs)
-
-    interactions_df_merged = add_circadianess_to_interaction_df(
-        interactions_df, circadian_df
-    )
-    return interactions_df_merged
-
-
 def add_velocity_change_to_intermediate_time_windows_df(intermediate_df, velocities):
     vel_change_lst = len(intermediate_df) * [None]
     rel_change_lst = len(intermediate_df) * [None]
@@ -1174,69 +1152,6 @@ def create_intermediate_df_per_bee(dt_from, dt_to, interaction_df, velocities):
         intermediate_df, interaction_df
     )
     return intermediate_df
-
-
-def interaction_df_to_MDG(interaction_df, weight="vel_change_bee_non_focal"):
-    """
-    Creates a Multidirected Graph with weighted edges between nodes. Each node represents a bee interacting at a
-    specific time. The interaction partners are connected and the given weight parameters is the weight of this edge.
-    Each node/bee has several attributes like bee_id, time (interaction time), p_value, phase, r_squared, is_forager,
-     ...
-
-    :param interaction_df: pd.DataFrame containing the columns ["interaction_start", "interaction_end", "bee_id_focal",
-    "bee_id_non_focal", "age_focal", "age_non_focal"]
-    :param weight: string being a column of interaction_df
-    :return: networkx Multidirected Graph
-    """
-    MDG, g = create_MDG(interaction_df, weight)
-    remove_nan_edges(MDG)
-    set_bee_attributes_to_MDG(MDG, g)
-    return MDG
-
-
-def create_MDG(interaction_df, weight):
-    # TODO: make attributes variable
-    vals = list(
-        set(
-            list(
-                interaction_df.groupby(
-                    ["bee_id_focal", "interaction_start", "age_focal"]
-                ).groups.keys()
-            )
-            + list(
-                interaction_df.groupby(
-                    ["bee_id_non_focal", "interaction_end", "age_non_focal"]
-                ).groups.keys()
-            )
-        )
-    )
-    g = interaction_df.pivot(
-        ["bee_id_focal", "interaction_start"],
-        ["bee_id_non_focal", "interaction_end"],
-        weight,
-    ).reindex(columns=vals, index=vals, fill_value=np.NaN)
-    MDG = nx.from_numpy_array(g.to_numpy(), create_using=nx.MultiDiGraph)
-    return MDG, g
-
-
-def remove_nan_edges(MDG):
-    to_remove = [
-        (a, b) for a, b, attrs in MDG.edges(data=True) if np.isnan(attrs["weight"])
-    ]
-    MDG.remove_edges_from(to_remove)
-
-
-def set_bee_attributes_to_MDG(MDG, g):
-    node_attributes = {}
-    i = 0
-    for bee_id_focal, interaction_start, age_focal in g.index:
-        node_attributes[i] = {
-            "bee_id": bee_id_focal,
-            "time": interaction_start,
-            "age": age_focal,
-        }
-        i += 1
-    nx.set_node_attributes(MDG, node_attributes)
 
 
 def get_min_and_max_pos(path):
