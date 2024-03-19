@@ -1,11 +1,15 @@
 import datetime
+
+import networkx as nx
+import numpy as np
 import pandas as pd
 from treelib import Tree
 import treelib
 from slurmhelper import SLURMJob
 
+
 class Interaction(object):
-    #TODO: make uniform series or dataframe as input
+    # TODO: make uniform series or dataframe as input
     def __init__(self, interaction_df_row):
         if type(interaction_df_row) == pd.DataFrame:
             self.phase = interaction_df_row["phase"].iloc[0]
@@ -165,7 +169,11 @@ def add_children(tree, parent, interaction_df, time_threshold, vel_change_thresh
             try:
                 tree.create_node(
                     int(row["bee_id_non_focal"]),
-                    "%d_%s" % (int(row["bee_id_non_focal"]), str(row["datetime"] + datetime.timedelta(microseconds=ms))),
+                    "%d_%s"
+                    % (
+                        int(row["bee_id_non_focal"]),
+                        str(row["datetime"] + datetime.timedelta(microseconds=ms)),
+                    ),
                     parent=parent.identifier,
                     data=Interaction(row),
                 )
@@ -212,29 +220,104 @@ def tree_to_path_df(slurm_job: SLURMJob) -> pd.DataFrame:
                 node = result.get_node(node)
                 if not is_root:
                     parent = [result.get_node(node.predecessor(result.identifier)).tag]
-                    time_gap = [result.get_node(node.predecessor(result.identifier)).data.datetime - node.data.datetime]
+                    time_gap = [
+                        result.get_node(
+                            node.predecessor(result.identifier)
+                        ).data.datetime
+                        - node.data.datetime
+                    ]
                 else:
                     parent = [None]
                     time_gap = [datetime.timedelta(minutes=0)]
-                path_df = pd.concat([path_df, pd.DataFrame({
-                    "bee_id": [node.tag],
-                    "datetime": [node.data.datetime],
-                    "phase": [node.data.phase],
-                    "x_pos": [node.data.x_pos],
-                    "y_pos": [node.data.y_pos],
-                    "vel_change_parent": [node.data.vel_change_parent],
-                    "r_squared": [node.data.r_squared],
-                    "age": [node.data.age],
-                    "is_root": [is_root],
-                    "depth": [i],
-                    "is_leaf": [node.is_leaf()],
-                    "n_children": [len(node.successors(result.identifier))],
-                    "parent": parent,
-                    "tree_id": [tree_id],
-                    "time_gap": time_gap,
-                    "path_id": [path_id],
-                })])
+                path_df = pd.concat(
+                    [
+                        path_df,
+                        pd.DataFrame(
+                            {
+                                "bee_id": [node.tag],
+                                "datetime": [node.data.datetime],
+                                "phase": [node.data.phase],
+                                "x_pos": [node.data.x_pos],
+                                "y_pos": [node.data.y_pos],
+                                "vel_change_parent": [node.data.vel_change_parent],
+                                "r_squared": [node.data.r_squared],
+                                "age": [node.data.age],
+                                "is_root": [is_root],
+                                "depth": [i],
+                                "is_leaf": [node.is_leaf()],
+                                "n_children": [len(node.successors(result.identifier))],
+                                "parent": parent,
+                                "tree_id": [tree_id],
+                                "time_gap": time_gap,
+                                "path_id": [path_id],
+                            }
+                        ),
+                    ]
+                )
                 i += 1
             path_id += 1
         tree_id += 1
     return path_df
+
+
+def interaction_df_to_MDG(interaction_df, weight="vel_change_bee_non_focal"):
+    """
+    Creates a Multidirected Graph with weighted edges between nodes. Each node represents a bee interacting at a
+    specific time. The interaction partners are connected and the given weight parameters is the weight of this edge.
+    Each node/bee has several attributes like bee_id, time (interaction time), p_value, phase, r_squared, is_forager,
+     ...
+
+    :param interaction_df: pd.DataFrame containing the columns ["interaction_start", "interaction_end", "bee_id_focal",
+    "bee_id_non_focal", "age_focal", "age_non_focal"]
+    :param weight: string being a column of interaction_df
+    :return: networkx Multidirected Graph
+    """
+    MDG, g = create_MDG(interaction_df, weight)
+    remove_nan_edges(MDG)
+    set_bee_attributes_to_MDG(MDG, g)
+    return MDG
+
+
+def create_MDG(interaction_df, weight):
+    # TODO: make attributes variable
+    vals = list(
+        set(
+            list(
+                interaction_df.groupby(
+                    ["bee_id_focal", "interaction_start", "age_focal"]
+                ).groups.keys()
+            )
+            + list(
+                interaction_df.groupby(
+                    ["bee_id_non_focal", "interaction_end", "age_non_focal"]
+                ).groups.keys()
+            )
+        )
+    )
+    g = interaction_df.pivot(
+        ["bee_id_focal", "interaction_start"],
+        ["bee_id_non_focal", "interaction_end"],
+        weight,
+    ).reindex(columns=vals, index=vals, fill_value=np.NaN)
+    MDG = nx.from_numpy_array(g.to_numpy(), create_using=nx.MultiDiGraph)
+    return MDG, g
+
+
+def remove_nan_edges(MDG):
+    to_remove = [
+        (a, b) for a, b, attrs in MDG.edges(data=True) if np.isnan(attrs["weight"])
+    ]
+    MDG.remove_edges_from(to_remove)
+
+
+def set_bee_attributes_to_MDG(MDG, g):
+    node_attributes = {}
+    i = 0
+    for bee_id_focal, interaction_start, age_focal in g.index:
+        node_attributes[i] = {
+            "bee_id": bee_id_focal,
+            "time": interaction_start,
+            "age": age_focal,
+        }
+        i += 1
+    nx.set_node_attributes(MDG, node_attributes)

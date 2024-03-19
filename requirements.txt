@@ -1,47 +1,109 @@
+aenum==3.1.12
+aiohttp==3.8.4
+aiosignal==1.3.1
+astropy==5.3
+async-timeout==4.0.2
+attrs==23.1.0
 bb-behavior @ git+https://github.com/BioroboticsLab/bb_behavior@e2083e586b7214587bcbbaf7b50f6b53b7d3c786
-Bottleneck
+bb-circadian @ git+https://github.com/BioroboticsLab/bb_circadian@97931bcac2ff0fe4d931ac8d000fe15afdabab5e
+beautifulsoup4==4.12.2
+bigtree==0.16.2
+black @ file:///croot/black_1680737249031/work
+Bottleneck @ file:///opt/conda/conda-bld/bottleneck_1657175564434/work
+cachetools==5.3.1
 certifi==2023.5.7
+cffi==1.15.1
 charset-normalizer==3.1.0
+click==8.1.3
+click-params==0.4.1
+cloup==1.0.2
 cmake==3.26.3
 contourpy==1.0.7
 cycler==0.11.0
+dateparser==1.1.8
+decorator==5.1.1
+deprecation==2.1.0
+diskcache==5.6.1
+environs==9.5.0
 filelock==3.12.0
 fonttools==4.39.4
+frozenlist==1.3.3
+fsspec==2023.6.0
+h3==3.7.6
+h5py==3.9.0
 idna==3.4
 Jinja2==3.1.2
 joblib==1.2.0
 kiwisolver==1.4.4
 lit==16.0.5.post0
 llvmlite==0.40.0
+lxml==4.9.2
 MarkupSafe==2.1.3
+marshmallow==3.19.0
 matplotlib==3.7.1
+measurement==3.2.2
+mkl-fft==1.3.6
+mkl-random @ file:///work/mkl/mkl_random_1682950433854/work
+mkl-service==2.4.0
 mpmath==1.3.0
+multidict==6.0.4
+mypy-extensions==0.4.3
 networkx==3.1
 numba==0.57.0
-numexpr
-numpy~=1.24.3
+numexpr @ file:///croot/numexpr_1683221822650/work
+numpy @ file:///work/mkl/numpy_and_numpy_base_1682953417311/work
+nvidia-cublas-cu11==11.10.3.66
+nvidia-cuda-cupti-cu11==11.7.101
+nvidia-cuda-nvrtc-cu11==11.7.99
+nvidia-cuda-runtime-cu11==11.7.99
+nvidia-cudnn-cu11==8.5.0.96
+nvidia-cufft-cu11==10.9.0.58
+nvidia-curand-cu11==10.2.10.91
+nvidia-cusolver-cu11==11.4.0.1
+nvidia-cusparse-cu11==11.7.4.91
+nvidia-nccl-cu11==2.14.3
+nvidia-nvtx-cu11==11.7.91
 opencv-python==4.7.0.72
 packaging==23.1
 pandas==1.5.3
+pathspec @ file:///croot/pathspec_1674681560568/work
+patsy==0.5.3
 Pillow==9.5.0
+Pint==0.17
+platformdirs==2.6.2
 psycopg2-binary==2.9.6
+pvlib==0.9.5
+pycparser==2.21
 pyerfa==2.0.0.3
 pyparsing==3.0.9
-python-dateutil
-pytz
+PyPDF2==1.28.6
+python-dateutil @ file:///tmp/build/80754af9/python-dateutil_1626374649649/work
+python-dotenv==1.0.0
+pytz @ file:///croot/pytz_1671697431263/work
 PyYAML==6.0
+rapidfuzz==2.15.1
+regex==2023.6.3
 requests==2.31.0
 scikit-learn==1.2.2
 scipy==1.10.1
-six
+seaborn==0.12.2
+six @ file:///tmp/build/80754af9/six_1644875935023/work
+soupsieve==2.4.1
+statsmodels==0.14.0
+suncalc==0.1.3
 sympy==1.12
+tabulate==0.8.10
 threadpoolctl==3.1.0
+timezonefinder==6.2.0
+tomli @ file:///opt/conda/conda-bld/tomli_1657175507142/work
 torch==2.0.1
 torchvision==0.15.2
+tqdm==4.65.0
+treelib==1.7.0
+triton==2.0.0
 typing_extensions==4.6.3
+tzlocal==5.0.1
 urllib3==2.0.2
-
-setuptools~=67.8.0
-seaborn~=0.12.2
-wetterdienst~=0.53.0
-suncalc~=0.1.3
+validators==0.20.0
+wetterdienst==0.56.2
+yarl==1.9.2

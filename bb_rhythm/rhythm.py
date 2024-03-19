@@ -30,6 +30,11 @@ def fit_cosinor(X, Y, period=24 * 60 * 60):
 
 
 def derive_cosine_parameter_from_cosinor(cosinor_fit):
+    """
+
+    :param cosinor_fit:
+    :return:
+    """
     mesor = cosinor_fit.params[0]
     amplitude = (cosinor_fit.params.beta_x**2 + cosinor_fit.params.gamma_x**2) ** (
         1 / 2
@@ -58,6 +63,14 @@ def derive_cosine_parameter_from_cosinor(cosinor_fit):
 
 
 def get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit):
+    """
+
+    :param mesor:
+    :param amplitude:
+    :param acrophase:
+    :param cosinor_fit:
+    :return:
+    """
     # covariance matrix
     # subset for amplitude and acrophase
     indVmat = cosinor_fit.cov_params().loc[["beta_x", "gamma_x"], ["beta_x", "gamma_x"]]
@@ -91,6 +104,13 @@ def get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit):
 
 
 def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
+    """
+
+    :param timeseries:
+    :param velocities:
+    :param period:
+    :return:
+    """
     # p_value alpha error correction
     X, Y = timeseries, velocities
 
@@ -193,7 +213,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 # This is copied and modified from bb_circadian.lombscargle
 def circadian_cosine(x, amplitude, phase, offset, period=24 * 60 * 60):
     frequency = 2.0 * np.pi * 1 / period
-    return np.cos(x * frequency - phase) * amplitude + offset
+    return np.cos(x * frequency + phase) * amplitude + offset
 
 
 # This is copied and modified from bb_circadian.lombscargle
@@ -275,6 +295,12 @@ def collect_fit_data_for_bee_date(
 
 
 def add_velocity_day_night_information(bee_date_data, velocities):
+    """
+
+    :param bee_date_data:
+    :param velocities:
+    :return:
+    """
     time_index = pd.DatetimeIndex(velocities.datetime)
     daytime = time_index.indexer_between_time("9:00", "18:00")
     nighttime = time_index.indexer_between_time("21:00", "6:00")
@@ -372,6 +398,14 @@ def fit_circadianess_fit_per_bee(
 
 
 def fit_cosinor_fit_per_bee(day=None, bee_id=None, velocities=None, bee_age=None):
+    """
+
+    :param day:
+    :param bee_id:
+    :param velocities:
+    :param bee_age:
+    :return:
+    """
     # get right data types
     day = datetime.datetime.fromisoformat(day.isoformat())
     assert day.tzinfo == datetime.timezone.utc
@@ -409,6 +443,12 @@ def extract_parameters_from_circadian_fit(data):
 
 
 def add_velocity_quality_params(data, velocities):
+    """
+
+    :param data:
+    :param velocities:
+    :return:
+    """
     data["n_data_points"] = len(velocities)
     data["data_point_dist_max"] = velocities["time_passed"].max()
     data["data_point_dist_min"] = velocities["time_passed"].min()
@@ -801,3 +841,9 @@ def create_cosinor_df_per_bee_time_period(
     else:
         cosinor_df = {None: dict(error="No velocities could be fetched or bee is dead")}
     return cosinor_df
+
+
+def create_grid_from_df(df, var, aggfunc):
+    return pd.pivot_table(
+        df, index="y", aggfunc=aggfunc, columns="x", values=var
+    ).to_numpy()
