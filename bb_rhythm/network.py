@@ -175,13 +175,15 @@ def add_children(tree, parent, interaction_df, time_threshold, vel_change_thresh
 
 
 def construct_interaction_tree_recursion(
-    tree, interaction_df, time_threshold, vel_change_threshold, time_stop
+    tree, interaction_df, time_threshold, vel_change_threshold, time_stop,  n
 ):
     for node in [node for node in tree.leaves() if node.data.datetime > time_stop]:
         add_children(tree, node, interaction_df, time_threshold, vel_change_threshold)
-        if not node.is_leaf():
+        if (not node.is_leaf())  and (n  <= 200):
+            print("recursion")
+            n  += 1
             construct_interaction_tree_recursion(
-                tree, interaction_df, time_threshold, vel_change_threshold, time_stop
+                tree, interaction_df, time_threshold, vel_change_threshold, time_stop, n,
             )
 
 
@@ -191,7 +193,7 @@ def create_interaction_tree(
     tree = Tree()
     add_root(tree, source_bee_ids, interaction_df, time_threshold, vel_change_threshold)
     construct_interaction_tree_recursion(
-        tree, interaction_df, time_threshold, vel_change_threshold, time_stop
+        tree, interaction_df, time_threshold, vel_change_threshold, time_stop,   0,
     )
     return tree
 
