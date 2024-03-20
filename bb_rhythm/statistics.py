@@ -73,9 +73,7 @@ def calculate_regression(
 
 
 def test_normally_distributed_bins(
-    df,
-    change_type="vel_change_bee_focal",
-    printing=True,
+    df, change_type="vel_change_bee_focal", printing=True
 ):
     # test for each bin if normally distributed
     group_type1 = "bins_non_focal"
@@ -91,9 +89,7 @@ def test_normally_distributed_bins(
 
 
 def test_for_equal_variance_in_bins(
-    df,
-    change_type="vel_change_bee_focal",
-    printing=True,
+    df, change_type="vel_change_bee_focal", printing=True
 ):
     # get samples from bins
     group_type1 = "bins_non_focal"

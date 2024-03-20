@@ -284,13 +284,13 @@ def plot_smoothed_age_velocity_over_time(
 
 
 def get_smoothed_velocities(sorted_by, time_age_velocity_df):
-    time_age_velocity_df.loc[:, "velocity_smoothed"] = time_age_velocity_df["velocity"]
+    time_age_velocity_df["velocity_smoothed"] = time_age_velocity_df["velocity"]
     for age_bin in time_age_velocity_df[sorted_by].unique():
         time_age_velocity_df.loc[
-            time_age_velocity_df[sorted_by] == age_bin, "velocity_smoothed"
+            time_age_velocity_df.loc[:, sorted_by] == age_bin, "velocity_smoothed"
         ] = gaussian_filter1d(
-            time_age_velocity_df["velocity"][
-                time_age_velocity_df[sorted_by] == age_bin
+            time_age_velocity_df["velocity"].loc[
+                (time_age_velocity_df.loc[:, sorted_by] == age_bin,)
             ],
             sigma=4,
         )
@@ -1134,8 +1134,8 @@ def plot_body_location_of_interactions(
 
     # add annotations one by one with a loop
     if annotate:
-        vel_change_matrix_df.vel_change_bee_focal = (
-            vel_change_matrix_df.vel_change_bee_focal.round(2)
+        vel_change_matrix_df.vel_change_bee_focal = vel_change_matrix_df.vel_change_bee_focal.round(
+            2
         )
         for line in range(0, vel_change_matrix_df.shape[0]):
             ax.text(

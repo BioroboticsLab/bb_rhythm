@@ -131,13 +131,7 @@ def create_ccr_df_per_bee_from_period(
     :param delta:
     :return:
     """
-    dates = list(
-        pd.date_range(
-            start=dt_from,
-            end=dt_to,
-            tz=pytz.UTC,
-        ).to_pydatetime()
-    )
+    dates = list(pd.date_range(start=dt_from, end=dt_to, tz=pytz.UTC).to_pydatetime())
     cross_correlations_dfs = []
     for current_dt in dates:
         bee_age = int(

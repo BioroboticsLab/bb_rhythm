@@ -174,11 +174,7 @@ def extract_parameters_from_events(event):
     }
 
 
-def extract_parameters_from_random_samples(
-    event,
-    interaction_start,
-    interaction_end,
-):
+def extract_parameters_from_random_samples(event, interaction_start, interaction_end):
     """
 
     :param event:
@@ -402,11 +398,7 @@ def get_velocity_change_per_bee(
     return vel_change, percent_change
 
 
-def extract_parameters_from_random_samples(
-    event,
-    interaction_start,
-    interaction_end,
-):
+def extract_parameters_from_random_samples(event, interaction_start, interaction_end):
     return {
         "bee_id0": event[0][0],
         "bee_id1": event[1][0],

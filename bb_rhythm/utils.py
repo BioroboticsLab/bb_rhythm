@@ -19,7 +19,7 @@ class Binning:
         self.label_type = str
 
     def replace_bin_identifier_by_bin_map_identifier(self, df):
-        df.loc[:, self.bin_name] = [self.bin_labels[item] for item in self.bins]
+        df.loc[:, self.bin_name] = [self.bin_labels.loc[:, item] for item in self.bins]
 
     def create_bin(self, df=None, bins=None):
         """
@@ -132,7 +132,7 @@ class Binning:
         self.create_bin(df=df, bins=bins)
         self.create_bin_labels(bin_labels)
         self.replace_bin_identifier_by_bin_map_identifier(df)
-        df.dropna(subset=[self.bin_name], inplace=True)
+        df.dropna(subset=self.bin_name, inplace=True)
         return df
 
 

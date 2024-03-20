@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import pandas as pd
 import datetime
 import pytz
@@ -36,7 +37,7 @@ def derive_cosine_parameter_from_cosinor(cosinor_fit):
     :return:
     """
     mesor = cosinor_fit.params[0]
-    amplitude = (cosinor_fit.params.beta_x**2 + cosinor_fit.params.gamma_x**2) ** (
+    amplitude = (cosinor_fit.params.beta_x ** 2 + cosinor_fit.params.gamma_x ** 2) ** (
         1 / 2
     )
     # checking sign of beta and gamma and calculate phase accordingly
@@ -77,10 +78,10 @@ def get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit):
 
     beta_r = cosinor_fit.params.beta_x
     beta_s = cosinor_fit.params.gamma_x
-    a_r = (beta_r**2 + beta_s**2) ** (-0.5) * beta_r
-    a_s = (beta_r**2 + beta_s**2) ** (-0.5) * beta_s
-    b_r = (1 / (1 + (beta_s**2 / beta_r**2))) * (-beta_s / beta_r**2)
-    b_s = (1 / (1 + (beta_s**2 / beta_r**2))) * (1 / beta_r)
+    a_r = (beta_r ** 2 + beta_s ** 2) ** (-0.5) * beta_r
+    a_s = (beta_r ** 2 + beta_s ** 2) ** (-0.5) * beta_s
+    b_r = (1 / (1 + (beta_s ** 2 / beta_r ** 2))) * (-beta_s / beta_r ** 2)
+    b_s = (1 / (1 + (beta_s ** 2 / beta_r ** 2))) * (1 / beta_r)
 
     jac = np.array([[a_r, a_s], [b_r, b_s]])
     cov_trans = np.dot(np.dot(jac, indVmat), np.transpose(jac))
@@ -230,7 +231,7 @@ def fit_circadian_cosine(X, Y, phase=0):
     Returns:
         Dictionary with all information about a fit.
     """
-    amplitude = 3 * np.std(Y) / (2**0.5)
+    amplitude = 3 * np.std(Y) / (2 ** 0.5)
     phase = phase
     offset = np.mean(Y)
     initial_parameters = [amplitude, phase, offset]
@@ -704,16 +705,10 @@ def create_10_min_mean_velocity_df_per_bee(
     """
     # set dates
     delta = datetime.timedelta(days=1)
-    dates = list(
-        pd.date_range(
-            start=dt_from,
-            end=dt_to,
-            tz=pytz.UTC,
-        ).to_pydatetime()
-    )
+    dates = list(pd.date_range(start=dt_from, end=dt_to, tz=pytz.UTC).to_pydatetime())
 
     # get velocities
-    velocities = bb_rhythm.utils.fetch_velocities_from_remote_or_db(
+    velocities = utils.fetch_velocities_from_remote_or_db(
         bee_id, dt_to, dt_from, velocity_df_path
     )
 
