@@ -96,8 +96,8 @@ sympy==1.12
 tabulate==0.8.10
 threadpoolctl==3.1.0
 timezonefinder==6.2.0
-tomli==2.0.0
-torch==2.0.1
+tomli==2.0.1
+torch==2.2.1
 torchvision==0.15.2
 tqdm==4.65.0
 treelib==1.7.0
