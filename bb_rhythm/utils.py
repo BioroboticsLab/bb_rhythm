@@ -196,3 +196,19 @@ def nan_tolerant_gaussian_filtering(U, sigma):
     W[np.isnan(U)] = 0
     WW = gaussian_filter(W, sigma=sigma)
     return VV/WW
+
+
+def min_max_normalize(series, reverse=False):
+    """
+    Min-Max normalization of pandas series.
+    Returns revers if reverse is True.
+
+    :param series: pd.Series
+    :param reverse: bool
+    :return: pd.Series
+    """
+    series_min_max_norm = (series - series.min()) / (series.max() - series.min())
+    if reverse:
+        series_min_max_norm = 1 - series_min_max_norm
+    return series_min_max_norm
+
