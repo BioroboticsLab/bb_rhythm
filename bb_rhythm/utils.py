@@ -19,14 +19,14 @@ class Binning:
         self.label_type = str
 
     def replace_bin_identifier_by_bin_map_identifier(self, df):
-        df.loc[:, self.bin_name] = [self.bin_labels.loc[:, item] for item in self.bins]
+        df.loc[:, self.bin_name] = [self.bin_labels[item] for item in self.bins]
 
     def create_bin(self, df=None, bins=None):
         """
         Creates self.bins according step size and bin number limit.
         """
         if self.is_categorical:
-            self.bins = df[self.bin_parameter]
+            self.bins = df[self.bin_parameter].copy()
         if (bins is not None) and (not self.is_categorical):
             bins.append(self.bin_max_value)
             self.bins = pd.cut(
