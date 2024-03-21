@@ -8,10 +8,11 @@ from functools import reduce
 import pandas as pd
 import numpy as np
 import pytz
+import os
 
 import bb_behavior.db
 
-from . import statistics
+from . import statistics, utils
 
 
 def get_weather_parameter_df(
@@ -131,13 +132,7 @@ def create_ccr_df_per_bee_from_period(
     :param delta:
     :return:
     """
-    dates = list(
-        pd.date_range(
-            start=dt_from,
-            end=dt_to,
-            tz=pytz.UTC,
-        ).to_pydatetime()
-    )
+    dates = list(pd.date_range(start=dt_from, end=dt_to, tz=pytz.UTC).to_pydatetime())
     cross_correlations_dfs = []
     for current_dt in dates:
         bee_age = int(
@@ -208,5 +203,5 @@ def calculate_weather_activity_cross_correlation(
     cc_df.to_pickle(os.path.join(cc_path, "%s.pkl" % bee_id))
 
     # get per bee, per day, per weather param max, min ccr
-    df_corr = weather_api.create_min_max_ccr_df_per_bee(bee_id, cc_df)
+    df_corr = create_min_max_ccr_df_per_bee(bee_id, cc_df)
     return df_corr

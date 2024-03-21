@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import pandas as pd
 import datetime
 import pytz
@@ -30,8 +31,13 @@ def fit_cosinor(X, Y, period=24 * 60 * 60):
 
 
 def derive_cosine_parameter_from_cosinor(cosinor_fit):
+    """
+
+    :param cosinor_fit:
+    :return:
+    """
     mesor = cosinor_fit.params[0]
-    amplitude = (cosinor_fit.params.beta_x**2 + cosinor_fit.params.gamma_x**2) ** (
+    amplitude = (cosinor_fit.params.beta_x ** 2 + cosinor_fit.params.gamma_x ** 2) ** (
         1 / 2
     )
     # checking sign of beta and gamma and calculate phase accordingly
@@ -58,16 +64,24 @@ def derive_cosine_parameter_from_cosinor(cosinor_fit):
 
 
 def get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit):
+    """
+
+    :param mesor:
+    :param amplitude:
+    :param acrophase:
+    :param cosinor_fit:
+    :return:
+    """
     # covariance matrix
     # subset for amplitude and acrophase
     indVmat = cosinor_fit.cov_params().loc[["beta_x", "gamma_x"], ["beta_x", "gamma_x"]]
 
     beta_r = cosinor_fit.params.beta_x
     beta_s = cosinor_fit.params.gamma_x
-    a_r = (beta_r**2 + beta_s**2) ** (-0.5) * beta_r
-    a_s = (beta_r**2 + beta_s**2) ** (-0.5) * beta_s
-    b_r = (1 / (1 + (beta_s**2 / beta_r**2))) * (-beta_s / beta_r**2)
-    b_s = (1 / (1 + (beta_s**2 / beta_r**2))) * (1 / beta_r)
+    a_r = (beta_r ** 2 + beta_s ** 2) ** (-0.5) * beta_r
+    a_s = (beta_r ** 2 + beta_s ** 2) ** (-0.5) * beta_s
+    b_r = (1 / (1 + (beta_s ** 2 / beta_r ** 2))) * (-beta_s / beta_r ** 2)
+    b_s = (1 / (1 + (beta_s ** 2 / beta_r ** 2))) * (1 / beta_r)
 
     jac = np.array([[a_r, a_s], [b_r, b_s]])
     cov_trans = np.dot(np.dot(jac, indVmat), np.transpose(jac))
@@ -91,6 +105,13 @@ def get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit):
 
 
 def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
+    """
+
+    :param timeseries:
+    :param velocities:
+    :param period:
+    :return:
+    """
     # p_value alpha error correction
     X, Y = timeseries, velocities
 
@@ -210,7 +231,7 @@ def fit_circadian_cosine(X, Y, phase=0):
     Returns:
         Dictionary with all information about a fit.
     """
-    amplitude = 3 * np.std(Y) / (2**0.5)
+    amplitude = 3 * np.std(Y) / (2 ** 0.5)
     phase = phase
     offset = np.mean(Y)
     initial_parameters = [amplitude, phase, offset]
@@ -275,6 +296,12 @@ def collect_fit_data_for_bee_date(
 
 
 def add_velocity_day_night_information(bee_date_data, velocities):
+    """
+
+    :param bee_date_data:
+    :param velocities:
+    :return:
+    """
     time_index = pd.DatetimeIndex(velocities.datetime)
     daytime = time_index.indexer_between_time("9:00", "18:00")
     nighttime = time_index.indexer_between_time("21:00", "6:00")
@@ -372,6 +399,14 @@ def fit_circadianess_fit_per_bee(
 
 
 def fit_cosinor_fit_per_bee(day=None, bee_id=None, velocities=None, bee_age=None):
+    """
+
+    :param day:
+    :param bee_id:
+    :param velocities:
+    :param bee_age:
+    :return:
+    """
     # get right data types
     day = datetime.datetime.fromisoformat(day.isoformat())
     assert day.tzinfo == datetime.timezone.utc
@@ -409,6 +444,12 @@ def extract_parameters_from_circadian_fit(data):
 
 
 def add_velocity_quality_params(data, velocities):
+    """
+
+    :param data:
+    :param velocities:
+    :return:
+    """
     data["n_data_points"] = len(velocities)
     data["data_point_dist_max"] = velocities["time_passed"].max()
     data["data_point_dist_min"] = velocities["time_passed"].min()
@@ -648,8 +689,8 @@ def get_raw_phase_df(file, velocities_path):
         ]
     )
     return df_max_vel
-    
-    
+
+
 def create_10_min_mean_velocity_df_per_bee(
     bee_id, dt_from, dt_to, velocity_df_path=None, cursor=None
 ):
@@ -664,16 +705,10 @@ def create_10_min_mean_velocity_df_per_bee(
     """
     # set dates
     delta = datetime.timedelta(days=1)
-    dates = list(
-        pd.date_range(
-            start=dt_from,
-            end=dt_to,
-            tz=pytz.UTC,
-        ).to_pydatetime()
-    )
+    dates = list(pd.date_range(start=dt_from, end=dt_to, tz=pytz.UTC).to_pydatetime())
 
     # get velocities
-    velocities = bb_rhythm.utils.fetch_velocities_from_remote_or_db(
+    velocities = utils.fetch_velocities_from_remote_or_db(
         bee_id, dt_to, dt_from, velocity_df_path
     )
 
@@ -804,6 +839,6 @@ def create_cosinor_df_per_bee_time_period(
 
 
 def create_grid_from_df(df, var, aggfunc):
-    
-    return pd.pivot_table(df, index='y', aggfunc=aggfunc,
-                   columns='x', values=var).to_numpy()
+    return pd.pivot_table(
+        df, index="y", aggfunc=aggfunc, columns="x", values=var
+    ).to_numpy()
