@@ -184,3 +184,18 @@ def split_ci_lower_upper(df, variables):
     df_plt.reset_index(inplace=True)
     df_plt.drop(columns=["index"], inplace=True)
     return df_plt
+
+
+def min_max_normalize(series, reverse=False):
+    """
+    Min-Max normalization of pandas series.
+    Returns revers if reverse is True.
+
+    :param series: pd.Series
+    :param reverse: bool
+    :return: pd.Series
+    """
+    series_min_max_norm = (series - series.min()) / (series.max() - series.min())
+    if reverse:
+        series_min_max_norm = 1 - series_min_max_norm
+    return series_min_max_norm
