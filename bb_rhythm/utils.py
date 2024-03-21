@@ -2,6 +2,7 @@ import os
 import bb_behavior.db
 import numpy as np
 import pandas as pd
+from scipy.ndimage import gaussian_filter
 
 
 class Binning:
@@ -184,3 +185,14 @@ def split_ci_lower_upper(df, variables):
     df_plt.reset_index(inplace=True)
     df_plt.drop(columns=["index"], inplace=True)
     return df_plt
+
+
+def nan_tolerant_gaussian_filtering(U, sigma):
+    V = U.copy()
+    V[np.isnan(U)] = 0
+    VV = gaussian_filter(V, sigma=sigma)
+
+    W = 0 * U.copy()+1
+    W[np.isnan(U)] = 0
+    WW = gaussian_filter(W, sigma=sigma)
+    return VV/WW
