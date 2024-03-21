@@ -8,7 +8,7 @@ bb-behavior @ git+https://github.com/BioroboticsLab/bb_behavior@e2083e586b721458
 bb-circadian @ git+https://github.com/BioroboticsLab/bb_circadian@97931bcac2ff0fe4d931ac8d000fe15afdabab5e
 beautifulsoup4==4.12.2
 bigtree==0.16.2
-Bottleneck==1.3.5
+# Bottleneck==1.3.5
 cachetools
 certifi==2023.5.7
 cffi==1.15.1
