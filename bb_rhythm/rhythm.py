@@ -844,6 +844,25 @@ def create_grid_from_df(df, var, aggfunc):
     ).to_numpy()
 
 
+def fit_cosinor_from_df(bee_id, day, cosinor_df, velocity_df):
+    """
+
+    :param bee_id:
+    :param day:
+    :param cosinor_df:
+    :param velocity_df:
+    :return:
+    """
+    cosinor_df_subset = cosinor_df[(cosinor_df.bee_id == bee_id) & (cosinor_df.date == day)]
+    A = cosinor_df_subset.amplitude.values[0]
+    P = cosinor_df_subset.phase.values[0]
+    M = cosinor_df_subset.mesor.values[0]
+    X = np.array([t.total_seconds() for t in velocity_df.datetime - day])
+    Y = A*np.cos(X-P) + M
+    return X, Y
+
+
+
 def min_max_scaling(timeseries):
     """
     Scales a timeseries with range [r_min, r_max] to range [0,1].

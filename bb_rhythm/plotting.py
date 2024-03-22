@@ -284,7 +284,7 @@ def plot_smoothed_age_velocity_over_time(
 
 
 def get_smoothed_velocities(sorted_by, time_age_velocity_df):
-    time_age_velocity_df["velocity_smoothed"] = time_age_velocity_df["velocity"]
+    time_age_velocity_df.loc[:, "velocity_smoothed"] = time_age_velocity_df["velocity"].copy()
     for age_bin in time_age_velocity_df[sorted_by].unique():
         time_age_velocity_df.loc[
             time_age_velocity_df.loc[:, sorted_by] == age_bin, "velocity_smoothed"
@@ -1541,3 +1541,68 @@ def whiten_out_low_sample_size_areas(
                 zorder=2,
             )
         i += 1
+
+
+def plot_cosinor_with_velocities(ax, velocity_df, velocity_subperiod_df, color, day, cosinor_df, bee_id, round_up_to,
+                                 ylim, set_xticks=True):
+    """
+
+    :param ax:
+    :param velocity_df:
+    :param velocity_subperiod_df:
+    :param color:
+    :param day:
+    :param cosinor_df:
+    :param bee_id:
+    :param round_up_to:
+    :param ylim:
+    :param set_xticks:
+    :return:
+    """
+    # round to median movement speed
+    velocity_df["datetime"] = velocity_df["datetime"].dt.round(round_up_to)
+    velocity_df_median = velocity_df.groupby(["datetime"])[["velocity", "time_passed"]].median().reset_index()
+
+    # calculate X and Y of cosinor fit
+    X, Y = rhythm.fit_cosinor_from_df(bee_id, day, cosinor_df, velocity_df_median)
+
+    # add grey nighttimes
+    bb_rhythm.plotting.add_grey_nighttime_bars(ax, velocity_subperiod_df)
+
+    # plot cosinor fit
+    sns.lineplot(x=velocities_young.datetime.values, y=Y, color=color, ax=ax, linestyle="--")
+    # plot 95% percentile velocities
+    sns.lineplot(
+        data=velocities_young, x="datetime", y="velocity",
+        errorbar=("pi", 90),
+        color=color, ax=ax, estimator="median", linewidth=0,
+    )
+    # plot median velocities
+    sns.scatterplot(velocity_df_median, x="datetime", y="velocity", color=color, marker="X", size=0.75, ax=ax)
+
+    # x-axis settings
+    if set_xticks:
+        date_form = matplotlib.dates.DateFormatter("%m-%d %Hh")
+        ax.xaxis.set_major_formatter(date_form)
+        ax.xaxis.set_minor_locator(mdates.HourLocator(byhour=[2, 4, 6, 8, 10, 14, 16, 18, 20, 22]))
+        ax.tick_params(which='minor', length=2)
+        ax.set_xticks(ax.get_xticks())
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=15, ha='right')
+    ax.set_xlim(velocity_subperiod_df.date.min(), velocity_subperiod_df.date.max() + datetime.timedelta(hours=6))
+    ax.set_xlabel("Date")
+
+    # y-axis settings
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(5))
+    ax.set_ylim(ylim)
+    ax.set_ylabel("Movement speed [mm/s]")
+
+    # figure settings
+    ax.set_title("Movement speed and cosinor fit of individuals", fontsize=rcParams['axes.labelsize'])
+
+    # legend settings
+    legends = [
+        (mpatches.Patch(color=color, alpha=0.4), '95% Movement\nspeed [mm/s]'),
+        ((mlines.Line2D([], [], color=color, marker='x', linewidth=0, markersize=3)), "Median\nmovement speed per h"),
+        ((mlines.Line2D([], [], color=color, linestyle='--')), 'Cosinor fit'),
+    ]
+    leg = ax.legend(*zip(*legends), loc='upper left', framealpha=1.0, edgecolor=(1.0, 1.0, 1.0, 1.0))
