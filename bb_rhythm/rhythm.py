@@ -842,3 +842,20 @@ def create_grid_from_df(df, var, aggfunc):
     return pd.pivot_table(
         df, index="y", aggfunc=aggfunc, columns="x", values=var
     ).to_numpy()
+
+
+def min_max_scaling(timeseries):
+    """
+    Scales a timeseries with range [r_min, r_max] to range [0,1].
+    """
+    
+    # Get min and max of original range.
+    r_min = np.nanmin(timeseries)
+    r_max = np.nanmax(timeseries)
+
+    if (r_max - r_min) != 0:
+        return (timeseries - r_min) / (r_max - r_min)
+
+    # In case of division by zero return array of zeros.
+    else:
+        return np.zeros(timeseries.shape)
