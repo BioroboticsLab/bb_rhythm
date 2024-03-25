@@ -1570,10 +1570,10 @@ def plot_cosinor_with_velocities(ax, velocity_df, velocity_subperiod_df, color, 
     add_grey_nighttime_bars(ax, velocity_subperiod_df)
 
     # plot cosinor fit
-    sns.lineplot(x=velocities_young.datetime.values, y=Y, color=color, ax=ax, linestyle="--")
+    sns.lineplot(x=velocity_df_median.datetime.values, y=Y, color=color, ax=ax, linestyle="--")
     # plot 95% percentile velocities
     sns.lineplot(
-        data=velocities_young, x="datetime", y="velocity",
+        data=velocity_df, x="datetime", y="velocity",
         errorbar=("pi", 90),
         color=color, ax=ax, estimator="median", linewidth=0,
     )
