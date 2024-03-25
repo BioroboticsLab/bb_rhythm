@@ -1567,7 +1567,7 @@ def plot_cosinor_with_velocities(ax, velocity_df, velocity_subperiod_df, color, 
     X, Y = rhythm.fit_cosinor_from_df(bee_id, day, cosinor_df, velocity_df_median)
 
     # add grey nighttimes
-    bb_rhythm.plotting.add_grey_nighttime_bars(ax, velocity_subperiod_df)
+    add_grey_nighttime_bars(ax, velocity_subperiod_df)
 
     # plot cosinor fit
     sns.lineplot(x=velocities_young.datetime.values, y=Y, color=color, ax=ax, linestyle="--")
