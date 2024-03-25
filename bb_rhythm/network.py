@@ -6,7 +6,6 @@ import pandas as pd
 from treelib import Tree
 import treelib
 from slurmhelper import SLURMJob
-from utils import nan_tolerant_gaussian_filtering
 
 
 class Interaction(object):
