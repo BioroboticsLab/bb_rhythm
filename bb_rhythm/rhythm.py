@@ -23,17 +23,20 @@ def fit_cosinor(X, Y, period=24 * 60 * 60, cov_type='HAC'):
     data = pd.DataFrame()
     data["x"] = X
     data["y"] = Y
+    data= pd.concat([data] * 3, ignore_index=True)
     frequency = 2.0 * np.pi * 1 / period
     data["beta_x"] = np.cos((data.x / period) * 2.0 * np.pi)
     data["gamma_x"] = np.sin((data.x / period) * 2.0 * np.pi)
-    trigonometric_regression_model = smf.ols("y ~ beta_x + gamma_x", data)
-    if cov_type == 'HAC':  # adjust covariance https://www.statsmodels.org/dev/generated/statsmodels.regression.linear_model.OLSResults.get_robustcov_results.html
-        cov_kwds = {"maxlags": int(4 * (len(X) / 100) ** (2 / 9))}
+    trigonometric_regression_model = smf.glm(formula="y ~ beta_x + gamma_x", data=data, family=sm.genmod.families.family.Gamma())
+    if cov_type == 'HAC': # adjust covariance https://www.statsmodels.org/dev/generated/statsmodels.regression.linear_model.OLSResults.get_robustcov_results.html
+        try:
+            cov_kwds = {"maxlags": int(4 * (len(data) / 100) ** (2 / 9))}
+            fit = trigonometric_regression_model.fit(cov_type='HAC', cov_kwds=cov_kwds)
+        except Exception:
+            fit = trigonometric_regression_model.fit()
     else:
-        cov_kwds = {}
-    fit: RegressionResults = trigonometric_regression_model.fit(cov_type=cov_type, cov_kwds=cov_kwds)
+        fit = trigonometric_regression_model.fit()
     return fit
-
 
 def spectral_analysis(X, Y, min_frequency=1 / 72, max_frequency=1):
     """
@@ -152,7 +155,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # F test for good/significant fit/ model -> 9 cornelliesen
     # if p <= alpha -> significant rhythm
-    p = cosinor_fit.f_pvalue
+    p = cosinor_fit.wald_test("gamma_x = 0, beta_x = 0").pvalue
 
     # p for amplitude
     # z test
@@ -164,7 +167,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     ) = get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit)
 
     # 1 - statistics of Goodness Of Fit according to Cornelissen (eqs (14) - (15))
-    RSS = cosinor_fit.ssr
+    RSS = np.sum(cosinor_fit.resid_pearson ** 2)
     X_periodic = np.round_(X % period, 2)
     X_unique = np.unique(X_periodic)
     m = len(X_unique)
@@ -180,9 +183,9 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # 2 - kolgomorov-smirnov test for residuals are normally distributed
     try:
-        resid_distribution = scipy.stats.norm.fit(cosinor_fit.resid.dropna())
+        resid_distribution = scipy.stats.norm.fit(cosinor_fit.resid_pearson.dropna())
         p_ks = scipy.stats.kstest(
-            cosinor_fit.resid.dropna(), cdf=scipy.stats.norm(*resid_distribution).cdf
+            cosinor_fit.resid_pearson.dropna(), cdf=scipy.stats.norm(*resid_distribution).cdf
         ).pvalue
     except (TypeError, ValueError):
         p_ks = np.nan
@@ -198,19 +201,19 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     # 4 - independence of residuals -> not treat parameters but their CI -> underestimated
     # -> if violated low-passed filter by averaging or decimation
     # durbine watson statistic
-    dw = statsmodels.stats.stattools.durbin_watson(cosinor_fit.resid, axis=0)
+    dw = statsmodels.stats.stattools.durbin_watson(cosinor_fit.resid_pearson, axis=0)
 
     # runs test
     try:
         p_runs = statsmodels.sandbox.stats.runs.runstest_2samp(
-            cosinor_fit.resid[cosinor_fit.resid >= 0],
-            cosinor_fit.resid[cosinor_fit.resid < 0],
+            cosinor_fit.resid_pearson[cosinor_fit.resid_pearson >= 0],
+            cosinor_fit.resid_pearson[cosinor_fit.resid_pearson < 0],
         )[1]
     except (TypeError, ValueError):
         p_runs = np.nan
 
     # r_squared
-    r_squared, r_squared_adj = cosinor_fit.rsquared, cosinor_fit.rsquared_adj
+    r_squared, r_squared_adj = cosinor_fit.pseudo_rsquared(), np.nan
 
     # lombscargle frequency analysis
     lombscargle = spectral_analysis(X, Y)
