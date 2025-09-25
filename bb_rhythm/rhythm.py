@@ -10,6 +10,7 @@ import scipy.stats as stats
 from statsmodels.regression.linear_model import RegressionResults
 import statsmodels.stats.stattools
 from statsmodels.tsa.stattools import adfuller
+from astropy.timeseries import LombScargle
 
 import bb_behavior.db.base
 import bb_circadian.lombscargle
@@ -18,7 +19,7 @@ import bb_behavior.db
 from . import time, plotting, utils
 
 
-def fit_cosinor(X, Y, period=24 * 60 * 60):
+def fit_cosinor(X, Y, period=24 * 60 * 60, cov_type='HAC'):
     data = pd.DataFrame()
     data["x"] = X
     data["y"] = Y
@@ -26,8 +27,32 @@ def fit_cosinor(X, Y, period=24 * 60 * 60):
     data["beta_x"] = np.cos((data.x / period) * 2.0 * np.pi)
     data["gamma_x"] = np.sin((data.x / period) * 2.0 * np.pi)
     trigonometric_regression_model = smf.ols("y ~ beta_x + gamma_x", data)
-    fit: RegressionResults = trigonometric_regression_model.fit()
+    if cov_type == 'HAC':  # adjust covariance https://www.statsmodels.org/dev/generated/statsmodels.regression.linear_model.OLSResults.get_robustcov_results.html
+        cov_kwds = {"maxlags": int(4 * (len(X) / 100) ** (2 / 9))}
+    else:
+        cov_kwds = {}
+    fit: RegressionResults = trigonometric_regression_model.fit(cov_type=cov_type, cov_kwds=cov_kwds)
     return fit
+
+
+def spectral_analysis(X, Y, min_frequency=1 / 72, max_frequency=1):
+    """
+    Args:
+        X: time series
+        Y: velocities
+    """
+    ts = (X - X[0]) / 3600  # time in hours
+    ls = LombScargle(ts, Y)
+    frequency, power = ls.autopower(minimum_frequency=min_frequency, maximum_frequency=max_frequency)
+
+    day_frequency = (1 / 24)
+    max_power_idx = np.argmax(power)
+    max_frequency = frequency[max_power_idx]
+    max_power = power[max_power_idx]
+    circadian_power = ls.power(day_frequency)
+
+    return dict(max_power=max_power, max_frequency=max_frequency,
+                circadian_power=circadian_power, max_frequency_h=1 / max_frequency)
 
 
 def derive_cosine_parameter_from_cosinor(cosinor_fit):
@@ -38,7 +63,7 @@ def derive_cosine_parameter_from_cosinor(cosinor_fit):
     """
     mesor = cosinor_fit.params[0]
     amplitude = (cosinor_fit.params.beta_x ** 2 + cosinor_fit.params.gamma_x ** 2) ** (
-        1 / 2
+            1 / 2
     )
     # checking sign of beta and gamma and calculate phase accordingly
     # derived by https://rdrr.io/cran/card/src/R/cosinor-fit.R
@@ -164,9 +189,9 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # 3 - F = (N - 2p - 2)r² / (1-r²) > F -> variance is homogeneous
     F_hom = (
-        cosinor_fit.nobs
-        * cosinor_fit.fittedvalues.sum() ** 2
-        / (1 - cosinor_fit.fittedvalues.sum() ** 2)
+            cosinor_fit.nobs
+            * cosinor_fit.fittedvalues.sum() ** 2
+            / (1 - cosinor_fit.fittedvalues.sum() ** 2)
     )
     p_hom = 1 - scipy.stats.f.cdf(F_hom, 1, cosinor_fit.nobs)
 
@@ -186,6 +211,9 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # r_squared
     r_squared, r_squared_adj = cosinor_fit.rsquared, cosinor_fit.rsquared_adj
+
+    # lombscargle frequency analysis
+    lombscargle = spectral_analysis(X, Y)
 
     data = {
         "mesor": mesor,
@@ -207,6 +235,11 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
         "p_runs": p_runs,
         "RSS": RSS,
         "SSPE": SSPE,
+        "max_power_ls": lombscargle["max_power"],  # max power (y-value) of spectral analysis
+        "max_frequency_ls": lombscargle["max_frequency"],  # frequency of max power (x-value) of spectral analysis
+        "circadian_power_ls": lombscargle["circadian_power"],  # power (y-value) of 24h of spectral analysis
+        "max_frequency_h_ls": lombscargle["max_frequency_h"],
+        # frequency in hours of max power (x-value) of spectral analysis
     }
     return data
 
@@ -271,7 +304,7 @@ def fit_circadian_cosine(X, Y, phase=0):
 
 
 def collect_fit_data_for_bee_date(
-    bee_id, date, velocities=None, delta=datetime.timedelta(days=1, hours=12), phase=0
+        bee_id, date, velocities=None, delta=datetime.timedelta(days=1, hours=12), phase=0
 ):
     if "offset" in velocities.columns:
         ts = velocities.offset.values
@@ -314,7 +347,7 @@ def add_velocity_day_night_information(bee_date_data, velocities):
 
 
 def fit_circadianess_fit_per_bee_phase_variation(
-    day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None, phases=None
+        day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None, phases=None
 ):
     if bee_age == -1 or bee_age == 0:
         return {None: dict(error="Bee is already dead or new to colony..")}
@@ -358,7 +391,7 @@ def fit_circadianess_fit_per_bee_phase_variation(
 
 
 def fit_circadianess_fit_per_bee(
-    day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None
+        day=None, bee_id=None, from_dt=None, to_dt=None, bee_age=None
 ):
     if bee_age == -1 or bee_age == 0:
         return {None: dict(error="Bee is already dead or new to colony..")}
@@ -481,7 +514,7 @@ def create_mean_count_circadianess_per_day_df(circadianess_df, column="age_bins"
     # filter counts lower than 0.05 counts out
     circadianess_df = circadianess_df[
         circadianess_df["count"] > circadianess_df["count"].quantile(q=0.05)
-    ]
+        ]
     return circadianess_df
 
 
@@ -493,23 +526,23 @@ def calculate_well_tested_circadianess(circadianess_df):
         np.float64
     )
     circadianess_df["well_tested_circadianess"] = (
-        circadianess_df.is_circadian * circadianess_df.is_good_fit
+            circadianess_df.is_circadian * circadianess_df.is_good_fit
     )
 
 
 def calculate_well_tested_circadianess_cosinor(circadianess_df):
     circadianess_df["is_good_fit"] = (
-        (circadianess_df.p_reject > 0.05)
-        & (circadianess_df.p_ks < 0.05)
-        & (circadianess_df.p_hom > 0.05)
-        & (circadianess_df.ad_fuller < 0.05)
-        & (circadianess_df.dw > 0.5)
+            (circadianess_df.p_reject > 0.05)
+            & (circadianess_df.p_ks < 0.05)
+            & (circadianess_df.p_hom > 0.05)
+            & (circadianess_df.ad_fuller < 0.05)
+            & (circadianess_df.dw > 0.5)
     ).astype(np.float64)
     circadianess_df["is_circadian"] = (
-        (circadianess_df.p_value < 0.05) & (circadianess_df.amplitude > 0)
+            (circadianess_df.p_value < 0.05) & (circadianess_df.amplitude > 0)
     ).astype(np.float64)
     circadianess_df["well_tested_circadianess"] = (
-        circadianess_df.is_circadian * circadianess_df.is_good_fit
+            circadianess_df.is_circadian * circadianess_df.is_good_fit
     )
 
 
@@ -532,8 +565,8 @@ def create_phase_plt_age_df(circadianess_df, phase_shift=12):
     return pd.DataFrame(
         {
             "phase_plt": (
-                (time.map_pi_time_interval_to_24h(circadianess_df["phase"]))
-                + phase_shift
+                    (time.map_pi_time_interval_to_24h(circadianess_df["phase"]))
+                    + phase_shift
             ).tolist(),
             "Age [days]": circadianess_df["Age [days]"].tolist(),
             "age": circadianess_df["age"].tolist(),
@@ -542,7 +575,7 @@ def create_phase_plt_age_df(circadianess_df, phase_shift=12):
 
 
 def add_phase_plt_to_df_cosine_fit(
-    circadianess_df, fit_type="cosine", time_reference=None
+        circadianess_df, fit_type="cosine", time_reference=None
 ):
     if fit_type == "cosine":
         time_shift = 12
@@ -551,15 +584,15 @@ def add_phase_plt_to_df_cosine_fit(
     if time_reference:
         time_shift = circadianess_df["time_reference"]
     circadianess_df["phase_plt"] = (
-        time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
-    ) % 24
+                                           time.map_pi_time_interval_to_24h(circadianess_df["phase"]) + time_shift
+                                   ) % 24
     return circadianess_df
 
 
 def add_phase_plt_to_df_cosinor(circadianess_df, period=24):
     circadianess_df["phase_plt"] = (
-        (-period * circadianess_df["phase"] / (2 * np.pi)) + 12
-    ) % 24
+                                           (-period * circadianess_df["phase"] / (2 * np.pi)) + 12
+                                   ) % 24
     return circadianess_df
 
 
@@ -631,16 +664,16 @@ def get_normalized_velocities(dt_from, dt_to):
         dt_from - datetime.timedelta(hours=6), dt_to + datetime.timedelta(hours=6)
     )[["velocity", "datetime"]]
     velocities_mean["velocity_normalized"] = (
-        velocities_mean.velocity.values
-        - velocities_mean.set_index("datetime")
-        .rolling("12h")
-        .mean()
-        .reset_index()["velocity"]
-        .values
+            velocities_mean.velocity.values
+            - velocities_mean.set_index("datetime")
+            .rolling("12h")
+            .mean()
+            .reset_index()["velocity"]
+            .values
     )
     return velocities_mean[
         (dt_from <= velocities_mean.datetime) & (velocities_mean.datetime < dt_to)
-    ].reset_index()
+        ].reset_index()
 
 
 def get_constant_fit(velocities):
@@ -651,7 +684,7 @@ def get_constant_fit(velocities):
             [
                 t.total_seconds()
                 for t in velocities.datetime
-                - pd.to_datetime(velocities.datetime.dt.date, utc=True)
+                         - pd.to_datetime(velocities.datetime.dt.date, utc=True)
             ]
         )
     v = velocities.velocity.values
@@ -692,7 +725,7 @@ def get_raw_phase_df(file, velocities_path):
 
 
 def create_10_min_mean_velocity_df_per_bee(
-    bee_id, dt_from, dt_to, velocity_df_path=None, cursor=None
+        bee_id, dt_from, dt_to, velocity_df_path=None, cursor=None
 ):
     """
 
@@ -717,7 +750,7 @@ def create_10_min_mean_velocity_df_per_bee(
         return {
             None: dict(
                 error="No velocities could be fetched..%d %s %s"
-                % (int(bee_id), dates[0], dates[-1])
+                      % (int(bee_id), dates[0], dates[-1])
             )
         }
     velocities.drop(columns=["time_passed"], inplace=True)
@@ -736,7 +769,7 @@ def create_10_min_mean_velocity_df_per_bee(
         # subset velocities
         current_velocities = velocities[
             (velocities["datetime"] >= from_dt) & (velocities["datetime"] < to_dt)
-        ]
+            ]
         bee_age_lst.extend([bee_age] * len(current_velocities))
 
     # add age
@@ -756,7 +789,7 @@ def create_10_min_mean_velocity_df_per_bee(
 
 
 def create_cosinor_df_per_bee_time_period(
-    bee_id, to_dt, from_dt, second=60, velocity_df_path=None
+        bee_id, to_dt, from_dt, second=60, velocity_df_path=None
 ):
     """
 
@@ -793,27 +826,30 @@ def create_cosinor_df_per_bee_time_period(
     # per day with a time window of 3 consecutive days
     dates = list(
         pd.date_range(
-            start="2019-08-20 12:00:00+00:00",
-            end="2019-09-14 12:00:00+00:00",
+            start=from_dt,
+            end=to_dt,
             tz=pytz.UTC,
         ).to_pydatetime()
     )
     delta = datetime.timedelta(days=1, hours=12)
     data_ls = []
     for current_dt in dates:
-        # get bee age
-        bee_age = int(
-            bb_behavior.db.metadata.get_bee_ages([(bee_id, current_dt.date())])[0][2]
-        )
-        # "Bee is already dead or new to colony.."
-        if bee_age == -1 or bee_age == 0:
-            continue
+        try:
+            # get bee age
+            bee_age = int(
+                bb_behavior.db.metadata.get_bee_ages([(bee_id, current_dt.date())])[0][2]
+            )
+            # "Bee is already dead or new to colony.."
+            if bee_age == -1 or bee_age == 0:
+                continue
+        except Exception:
+            bee_age = np.nan
 
         # subset velocities
         current_velocities = velocities[
             (velocities.datetime >= (current_dt - delta))
             & (velocities.datetime < (current_dt + delta))
-        ]
+            ]
         if len(current_velocities) == 0:
             continue
 
@@ -858,16 +894,15 @@ def fit_cosinor_from_df(bee_id, day, cosinor_df, velocity_df):
     P = cosinor_df_subset.phase.values[0]
     M = cosinor_df_subset.mesor.values[0]
     X = np.array([t.total_seconds() for t in velocity_df.datetime - day])
-    Y = A*np.cos(X-P) + M
+    Y = A * np.cos(X - P) + M
     return X, Y
-
 
 
 def min_max_scaling(timeseries):
     """
     Scales a timeseries with range [r_min, r_max] to range [0,1].
     """
-    
+
     # Get min and max of original range.
     r_min = np.nanmin(timeseries)
     r_max = np.nanmax(timeseries)
