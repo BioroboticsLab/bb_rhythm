@@ -9,6 +9,7 @@ import statsmodels.sandbox.stats.runs
 import scipy.stats as stats
 from statsmodels.regression.linear_model import RegressionResults
 import statsmodels.stats.stattools
+import statsmodels.api as sm
 from statsmodels.tsa.stattools import adfuller
 from astropy.timeseries import LombScargle
 
@@ -28,15 +29,19 @@ def fit_cosinor(X, Y, period=24 * 60 * 60, cov_type='HAC'):
     data["beta_x"] = np.cos((data.x / period) * 2.0 * np.pi)
     data["gamma_x"] = np.sin((data.x / period) * 2.0 * np.pi)
     trigonometric_regression_model = smf.glm(formula="y ~ beta_x + gamma_x", data=data, family=sm.genmod.families.family.Gamma())
-    if cov_type == 'HAC': # adjust covariance https://www.statsmodels.org/dev/generated/statsmodels.regression.linear_model.OLSResults.get_robustcov_results.html
-        try:
-            cov_kwds = {"maxlags": int(4 * (len(data) / 100) ** (2 / 9))}
-            fit = trigonometric_regression_model.fit(cov_type='HAC', cov_kwds=cov_kwds)
-        except Exception:
+    try:
+        if cov_type == 'HAC': # adjust covariance https://www.statsmodels.org/dev/generated/statsmodels.regression.linear_model.OLSResults.get_robustcov_results.html
+            try:
+                cov_kwds = {"maxlags": int(4 * (len(data) / 100) ** (2 / 9))}
+                fit = trigonometric_regression_model.fit(cov_type='HAC', cov_kwds=cov_kwds)
+            except Exception:
+                fit = trigonometric_regression_model.fit()
+        else:
             fit = trigonometric_regression_model.fit()
-    else:
-        fit = trigonometric_regression_model.fit()
-    return fit
+        return fit
+    except Exception as e:
+        print(f"fit_cosinor failed: {e} (len={len(data)})")
+        return None
 
 def spectral_analysis(X, Y, min_frequency=1 / 72, max_frequency=1):
     """
@@ -145,7 +150,8 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # make linear regression with least squares for cosinor fit
     cosinor_fit = fit_cosinor(X, Y, period=period)
-
+    if not cosinor_fit:
+        return None
     # get parameter from model
     mesor, amplitude, acrophase = derive_cosine_parameter_from_cosinor(cosinor_fit)
 
@@ -155,7 +161,11 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # F test for good/significant fit/ model -> 9 cornelliesen
     # if p <= alpha -> significant rhythm
-    p = cosinor_fit.wald_test("gamma_x = 0, beta_x = 0").pvalue
+    try:
+        p = cosinor_fit.wald_test("gamma_x = 0, beta_x = 0").pvalue
+    except Exception as e:
+        print(f"Wald test failed: {e}")
+        return None
 
     # p for amplitude
     # z test
@@ -168,7 +178,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # 1 - statistics of Goodness Of Fit according to Cornelissen (eqs (14) - (15))
     RSS = np.sum(cosinor_fit.resid_pearson ** 2)
-    X_periodic = np.round_(X % period, 2)
+    X_periodic = np.round(X % period, 2)
     X_unique = np.unique(X_periodic)
     m = len(X_unique)
     SSPE = 0
@@ -823,7 +833,13 @@ def create_cosinor_df_per_bee_time_period(
         return {None: dict(error="No velocities could be fetched..")}
 
     # test for stationarity of velocities
-    p_adfuller = adfuller(velocities.velocity, regression="ct")[1]
+    if len(velocities) >= 5:
+        try:
+            p_adfuller = adfuller(velocities.velocity, regression="ct")[1]
+        except ValueError:
+            p_adfuller = np.nan
+    else:
+        p_adfuller = np.nan    
 
     # iterate through dates of time interval and calculate cosinor fit
     # per day with a time window of 3 consecutive days
@@ -853,7 +869,8 @@ def create_cosinor_df_per_bee_time_period(
             (velocities.datetime >= (current_dt - delta))
             & (velocities.datetime < (current_dt + delta))
             ]
-        if len(current_velocities) == 0:
+        if len(current_velocities) <= 2:
+            # the fit needs at least 3 values
             continue
 
         # get circadian fit data
