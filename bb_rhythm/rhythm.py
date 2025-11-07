@@ -24,24 +24,27 @@ def fit_cosinor(X, Y, period=24 * 60 * 60, cov_type='HAC'):
     data = pd.DataFrame()
     data["x"] = X
     data["y"] = Y
-    data= pd.concat([data] * 3, ignore_index=True)
+    # data= pd.concat([data] * 3, ignore_index=True)
     frequency = 2.0 * np.pi * 1 / period
     data["beta_x"] = np.cos((data.x / period) * 2.0 * np.pi)
     data["gamma_x"] = np.sin((data.x / period) * 2.0 * np.pi)
-    trigonometric_regression_model = smf.glm(formula="y ~ beta_x + gamma_x", data=data, family=sm.genmod.families.family.Gamma())
-    try:
-        if cov_type == 'HAC': # adjust covariance https://www.statsmodels.org/dev/generated/statsmodels.regression.linear_model.OLSResults.get_robustcov_results.html
-            try:
-                cov_kwds = {"maxlags": int(4 * (len(data) / 100) ** (2 / 9))}
-                fit = trigonometric_regression_model.fit(cov_type='HAC', cov_kwds=cov_kwds)
-            except Exception:
-                fit = trigonometric_regression_model.fit()
-        else:
-            fit = trigonometric_regression_model.fit()
-        return fit
-    except Exception as e:
-        print(f"fit_cosinor failed: {e} (len={len(data)})")
-        return None
+    data_glm = data.copy()
+    data_glm["y"] = np.clip(data_glm["y"], 1e-6, None)
+    glm_model = smf.glm(formula="y ~ beta_x + gamma_x", data=data_glm, 
+                        family=sm.genmod.families.family.Gamma()) # link=sm.families.links.Log()
+    ols_model = smf.ols("y ~ beta_x + gamma_x", data)
+    if cov_type == 'HAC': # adjust covariance https://www.statsmodels.org/dev/generated/statsmodels.regression.linear_model.OLSResults.get_robustcov_results.html
+        try:
+            cov_kwds = {"maxlags": int(4 * (len(data) / 100) ** (2 / 9))}
+            fit_glm = glm_model.fit(cov_type='HAC', cov_kwds=cov_kwds)
+            fit_ols = ols_model.fit(cov_type='HAC', cov_kwds=cov_kwds)
+        except Exception:
+            fit_glm = glm_model.fit()
+            fit_ols = ols_model.fit()
+    else:
+        fit_glm = glm_model.fit()
+        fit_ols = ols_model.fit()
+    return fit_glm, fit_ols
 
 def spectral_analysis(X, Y, min_frequency=1 / 72, max_frequency=1):
     """
@@ -137,22 +140,8 @@ def get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit):
     return zip(lower_CI_trans, upper_CI_trans), p_values_trans
 
 
-def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
-    """
+def get_fit_metrics(cosinor_fit, X, Y, period):
 
-    :param timeseries:
-    :param velocities:
-    :param period:
-    :return:
-    """
-    # p_value alpha error correction
-    X, Y = timeseries, velocities
-
-    # make linear regression with least squares for cosinor fit
-    cosinor_fit = fit_cosinor(X, Y, period=period)
-    if not cosinor_fit:
-        return None
-    # get parameter from model
     mesor, amplitude, acrophase = derive_cosine_parameter_from_cosinor(cosinor_fit)
 
     # statistics according to Cornelissen (eqs (8) - (9))
@@ -165,7 +154,8 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
         p = cosinor_fit.wald_test("gamma_x = 0, beta_x = 0").pvalue
     except Exception as e:
         print(f"Wald test failed: {e}")
-        return None
+        p = np.nan
+        # return None
 
     # p for amplitude
     # z test
@@ -193,9 +183,11 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # 2 - kolgomorov-smirnov test for residuals are normally distributed
     try:
-        resid_distribution = scipy.stats.norm.fit(cosinor_fit.resid_pearson.dropna())
+        resid_data = cosinor_fit.resid_pearson
+        resid_clean = resid_data.dropna() if hasattr(resid_data, "dropna") else resid_data[~np.isnan(resid_data)]
+        resid_distribution = scipy.stats.norm.fit(resid_clean)
         p_ks = scipy.stats.kstest(
-            cosinor_fit.resid_pearson.dropna(), cdf=scipy.stats.norm(*resid_distribution).cdf
+            resid_clean, cdf=scipy.stats.norm(*resid_distribution).cdf
         ).pvalue
     except (TypeError, ValueError):
         p_ks = np.nan
@@ -222,12 +214,6 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     except (TypeError, ValueError):
         p_runs = np.nan
 
-    # r_squared
-    r_squared, r_squared_adj = cosinor_fit.pseudo_rsquared(), np.nan
-
-    # lombscargle frequency analysis
-    lombscargle = spectral_analysis(X, Y)
-
     data = {
         "mesor": mesor,
         "amplitude": amplitude,
@@ -240,20 +226,60 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
         "ci_amplitude": ci_amplitude,
         "ci_acrophase": ci_acrophase,
         "p_reject": p_reject,
-        "r_squared": r_squared,
-        "r_squared_adj": r_squared_adj,
         "p_ks": p_ks,
         "p_hom": p_hom,
         "dw": dw,
         "p_runs": p_runs,
         "RSS": RSS,
-        "SSPE": SSPE,
-        "max_power_ls": lombscargle["max_power"],  # max power (y-value) of spectral analysis
-        "max_frequency_ls": lombscargle["max_frequency"],  # frequency of max power (x-value) of spectral analysis
-        "circadian_power_ls": lombscargle["circadian_power"],  # power (y-value) of 24h of spectral analysis
+        "SSPE": SSPE
+    }        
+    return data
+
+
+def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
+    """
+
+    :param timeseries:
+    :param velocities:
+    :param period:
+    :return:
+    """
+    # p_value alpha error correction
+    X, Y = timeseries, velocities
+
+    # make linear regression with least squares for cosinor fit
+    fit_glm, fit_ols = fit_cosinor(X, Y, period=period)
+    if (not fit_glm) | (not fit_ols):
+        return None
+    # get parameter from model
+    data_glm = get_fit_metrics(fit_glm, X, Y, period)
+    data_ols = get_fit_metrics(fit_ols, X, Y, period)
+
+    # r_squared values
+    glm_r_squared = fit_glm.pseudo_rsquared()
+    ols_r_squared = fit_ols.rsquared
+    ols_r_squared_adj = fit_ols.rsquared_adj
+
+    # lombscargle frequency analysis
+    lombscargle = spectral_analysis(X, Y)
+
+    # base data (shared results)
+    data_ls = {
+        "r_squared": glm_r_squared,
+        "OLS_r_squared": ols_r_squared,
+        "OLS_r_squared_adj": ols_r_squared_adj,
+        "max_power_ls": lombscargle["max_power"],
+        "max_frequency_ls": lombscargle["max_frequency"],
+        "circadian_power_ls": lombscargle["circadian_power"],
         "max_frequency_h_ls": lombscargle["max_frequency_h"],
-        # frequency in hours of max power (x-value) of spectral analysis
     }
+
+    # prefix all OLS keys
+    data_ols_prefixed = {f"OLS_{k}": v for k, v in data_ols.items()}
+
+    # concatenate everything: GLM data + prefixed OLS data + Lomb–Scargle metrics
+    data = {**data_glm, **data_ols_prefixed, **data_ls}
+
     return data
 
 
@@ -459,7 +485,7 @@ def fit_cosinor_fit_per_bee(day=None, bee_id=None, velocities=None, bee_age=None
     day = day.replace(tzinfo=pytz.UTC)
 
     # remove NaNs and infs
-    velocities = velocities[~pd.isnull(velocities.velocity)]
+    # velocities = velocities[~pd.isnull(velocities.velocity)] # now this filtering is done before calling this function
 
     # get timeseries and velocities
     if "offset" in velocities.columns:
@@ -869,6 +895,10 @@ def create_cosinor_df_per_bee_time_period(
             (velocities.datetime >= (current_dt - delta))
             & (velocities.datetime < (current_dt + delta))
             ]
+        
+        # remove NaNs and infs (do this before passing to the next step)
+        current_velocities = current_velocities[~pd.isnull(current_velocities.velocity)]
+
         if len(current_velocities) <= 2:
             # the fit needs at least 3 values
             continue
