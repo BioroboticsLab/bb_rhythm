@@ -9,6 +9,7 @@ import statsmodels.sandbox.stats.runs
 import scipy.stats as stats
 from statsmodels.regression.linear_model import RegressionResults
 import statsmodels.stats.stattools
+import statsmodels.api as sm
 from statsmodels.tsa.stattools import adfuller
 from astropy.timeseries import LombScargle
 from scipy.stats import skew
@@ -24,7 +25,7 @@ def fit_cosinor(X, Y, period=24 * 60 * 60, cov_type='HAC'):
     data = pd.DataFrame()
     data["x"] = X
     data["y"] = Y
-    data= pd.concat([data] * 3, ignore_index=True)
+    # data= pd.concat([data] * 3, ignore_index=True)
     frequency = 2.0 * np.pi * 1 / period
     data["beta_x"] = np.cos((data.x / period) * 2.0 * np.pi)
     data["gamma_x"] = np.sin((data.x / period) * 2.0 * np.pi)
@@ -184,8 +185,8 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     ) = get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit)
 
     # 1 - statistics of Goodness Of Fit according to Cornelissen (eqs (14) - (15))
-    RSS = cosinor_fit.ssr
-    X_periodic = np.round_(X % period, 2)
+    RSS = np.sum(cosinor_fit.resid_pearson ** 2)
+    X_periodic = np.round(X % period, 2)
     X_unique = np.unique(X_periodic)
     m = len(X_unique)
     SSPE = 0
