@@ -11,6 +11,7 @@ from statsmodels.regression.linear_model import RegressionResults
 import statsmodels.stats.stattools
 from statsmodels.tsa.stattools import adfuller
 from astropy.timeseries import LombScargle
+from scipy.stats import skew
 
 import bb_behavior.db.base
 import bb_circadian.lombscargle
@@ -27,7 +28,7 @@ def fit_cosinor(X, Y, period=24 * 60 * 60, cov_type='HAC'):
     frequency = 2.0 * np.pi * 1 / period
     data["beta_x"] = np.cos((data.x / period) * 2.0 * np.pi)
     data["gamma_x"] = np.sin((data.x / period) * 2.0 * np.pi)
-    trigonometric_regression_model = smf.glm(formula="y ~ beta_x + gamma_x", data=data, family=sm.genmod.families.family.Gamma())
+    trigonometric_regression_model = smf.ols("y ~ beta_x + gamma_x", data)
     if cov_type == 'HAC': # adjust covariance https://www.statsmodels.org/dev/generated/statsmodels.regression.linear_model.OLSResults.get_robustcov_results.html
         try:
             cov_kwds = {"maxlags": int(4 * (len(data) / 100) ** (2 / 9))}
@@ -38,7 +39,7 @@ def fit_cosinor(X, Y, period=24 * 60 * 60, cov_type='HAC'):
         fit = trigonometric_regression_model.fit()
     return fit
 
-def spectral_analysis(X, Y, min_frequency=1 / 72, max_frequency=1):
+def spectral_analysis(X, Y, min_frequency=1 / 72, max_frequency=1, plot=False):
     """
     Args:
         X: time series
@@ -54,8 +55,24 @@ def spectral_analysis(X, Y, min_frequency=1 / 72, max_frequency=1):
     max_power = power[max_power_idx]
     circadian_power = ls.power(day_frequency)
 
+    if plot:
+        plot_spectrum(frequency, power)
+
     return dict(max_power=max_power, max_frequency=max_frequency,
                 circadian_power=circadian_power, max_frequency_h=1 / max_frequency)
+
+
+def plot_spectrum(frequency, power):
+    # Plot
+    plt.figure(figsize=(8, 4))
+    plt.plot(frequency, power)
+    plt.xlabel("Frequency (1/hour)")
+    plt.ylabel("Power")
+    plt.title("Lomb–Scargle Periodogram")
+    plt.grid(True)
+    plt.show()
+
+    return frequency, power
 
 
 def derive_cosine_parameter_from_cosinor(cosinor_fit):
@@ -155,7 +172,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # F test for good/significant fit/ model -> 9 cornelliesen
     # if p <= alpha -> significant rhythm
-    p = cosinor_fit.wald_test("gamma_x = 0, beta_x = 0").pvalue
+    p = cosinor_fit.f_pvalue
 
     # p for amplitude
     # z test
@@ -167,7 +184,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
     ) = get_significance_values_cosinor(mesor, amplitude, acrophase, cosinor_fit)
 
     # 1 - statistics of Goodness Of Fit according to Cornelissen (eqs (14) - (15))
-    RSS = np.sum(cosinor_fit.resid_pearson ** 2)
+    RSS = cosinor_fit.ssr
     X_periodic = np.round_(X % period, 2)
     X_unique = np.unique(X_periodic)
     m = len(X_unique)
@@ -183,40 +200,41 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # 2 - kolgomorov-smirnov test for residuals are normally distributed
     try:
-        resid_distribution = scipy.stats.norm.fit(cosinor_fit.resid_pearson.dropna())
+        resid_distribution = scipy.stats.norm.fit(cosinor_fit.resid.dropna())
         p_ks = scipy.stats.kstest(
-            cosinor_fit.resid_pearson.dropna(), cdf=scipy.stats.norm(*resid_distribution).cdf
+            cosinor_fit.resid.dropna(), cdf=scipy.stats.norm(*resid_distribution).cdf
         ).pvalue
     except (TypeError, ValueError):
         p_ks = np.nan
 
     # 3 - F = (N - 2p - 2)r² / (1-r²) > F -> variance is homogeneous
     F_hom = (
-            cosinor_fit.nobs
-            * cosinor_fit.fittedvalues.sum() ** 2
-            / (1 - cosinor_fit.fittedvalues.sum() ** 2)
+        cosinor_fit.nobs
+        * cosinor_fit.fittedvalues.sum() ** 2
+        / (1 - cosinor_fit.fittedvalues.sum() ** 2)
     )
     p_hom = 1 - scipy.stats.f.cdf(F_hom, 1, cosinor_fit.nobs)
 
     # 4 - independence of residuals -> not treat parameters but their CI -> underestimated
     # -> if violated low-passed filter by averaging or decimation
     # durbine watson statistic
-    dw = statsmodels.stats.stattools.durbin_watson(cosinor_fit.resid_pearson, axis=0)
+    dw = statsmodels.stats.stattools.durbin_watson(cosinor_fit.resid, axis=0)
 
     # runs test
     try:
         p_runs = statsmodels.sandbox.stats.runs.runstest_2samp(
-            cosinor_fit.resid_pearson[cosinor_fit.resid_pearson >= 0],
-            cosinor_fit.resid_pearson[cosinor_fit.resid_pearson < 0],
+            cosinor_fit.resid[cosinor_fit.resid >= 0],
+            cosinor_fit.resid[cosinor_fit.resid < 0],
         )[1]
     except (TypeError, ValueError):
         p_runs = np.nan
 
     # r_squared
-    r_squared, r_squared_adj = cosinor_fit.pseudo_rsquared(), np.nan
+    r_squared, r_squared_adj = cosinor_fit.rsquared, cosinor_fit.rsquared_adj
 
     # lombscargle frequency analysis
     lombscargle = spectral_analysis(X, Y)
+    skewed = skew(cosinor_fit.resid)
 
     data = {
         "mesor": mesor,
@@ -232,6 +250,7 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
         "p_reject": p_reject,
         "r_squared": r_squared,
         "r_squared_adj": r_squared_adj,
+        "skew_resid": skewed,
         "p_ks": p_ks,
         "p_hom": p_hom,
         "dw": dw,
