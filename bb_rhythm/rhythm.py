@@ -82,7 +82,7 @@ def derive_cosine_parameter_from_cosinor(cosinor_fit):
     :param cosinor_fit:
     :return:
     """
-    mesor = cosinor_fit.params[0]
+    mesor = cosinor_fit.params.iloc[0]
     amplitude = (cosinor_fit.params.beta_x ** 2 + cosinor_fit.params.gamma_x ** 2) ** (
             1 / 2
     )
@@ -235,7 +235,10 @@ def fit_cosinor_per_bee(timeseries=None, velocities=None, period=24 * 60 * 60):
 
     # lombscargle frequency analysis
     lombscargle = spectral_analysis(X, Y)
-    skewed = skew(cosinor_fit.resid)
+    try:
+        skewed = skew(cosinor_fit.resid)
+    except:
+        skewed = np.nan
 
     data = {
         "mesor": mesor,
@@ -843,7 +846,11 @@ def create_cosinor_df_per_bee_time_period(
         return {None: dict(error="No velocities could be fetched..")}
 
     # test for stationarity of velocities
-    p_adfuller = adfuller(velocities.velocity, regression="ct")[1]
+    try:
+        p_adfuller = adfuller(velocities.velocity, regression="ct")[1]
+    except:
+        p_adfuller = np.nan
+
 
     # iterate through dates of time interval and calculate cosinor fit
     # per day with a time window of 3 consecutive days
