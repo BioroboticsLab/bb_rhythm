@@ -473,6 +473,16 @@ def fit_cosinor_fit_per_bee(day=None, bee_id=None, velocities=None, bee_age=None
 
     # remove NaNs and infs
     velocities = velocities[~pd.isnull(velocities.velocity)]
+    # units conversion and shift, for consistency with previous database calculation methods
+    velocities["velocity"] = velocities["velocity"].shift(-1) * 10
+    distances = velocities["velocity"] * velocities["time_passed"]
+    velocities["velocity"][velocities["time_passed"] > 2] = np.nan
+    velocities["velocity"][distances > 25] = np.nan
+    velocities["velocity"][velocities["velocity"] > 15] = np.nan
+    velocities["velocity"] = scipy.signal.medfilt(velocities["velocity"], kernel_size=3)
+
+
+
 
     # get timeseries and velocities
     if "offset" in velocities.columns:
