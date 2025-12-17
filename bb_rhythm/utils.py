@@ -157,6 +157,7 @@ def fetch_velocities_from_remote_or_db(
             velocities = pd.read_pickle(
                 os.path.join(velocities_path, "%d.pickle" % bee_id)
             )
+            # units conversion and shift, for consistency with previous database calculation methods
             velocities["velocity"] = velocities["velocity"].shift(-1) * 10
             distances = velocities["velocity"] * velocities["time_passed"]
             velocities["velocity"][velocities["time_passed"] > 2] = np.nan
