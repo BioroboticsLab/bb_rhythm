@@ -157,7 +157,12 @@ def fetch_velocities_from_remote_or_db(
             velocities = pd.read_pickle(
                 os.path.join(velocities_path, "%d.pickle" % bee_id)
             )
-            velocities.loc[velocities.velocity > max_mm_per_second, "velocity"] = np.nan
+            velocities["velocity"] = velocities["velocity"].shift(-1) * 10
+            distances = velocities["velocity"] * velocities["time_passed"]
+            velocities["velocity"][velocities["time_passed"] > 2] = np.nan
+            velocities["velocity"][distances > 25] = np.nan
+            velocities["velocity"][velocities["velocity"] > 15] = np.nan
+            velocities["velocity"] = scipy.signal.medfilt(velocities["velocity"], kernel_size=3)
         else:
             assert FileNotFoundError
     except FileNotFoundError:

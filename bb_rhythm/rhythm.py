@@ -469,6 +469,8 @@ def fit_cosinor_fit_per_bee(day=None, bee_id=None, velocities=None, bee_age=None
     day = day.replace(tzinfo=pytz.UTC)
 
     # remove NaNs and infs
+    velocities["velocity"] = scipy.signal.medfilt(velocities["velocity"], kernel_size=3)
+    velocities["velocity"] = velocities["velocity"].shift(-1) * 10
     velocities = velocities[~pd.isnull(velocities.velocity)]
 
     # get timeseries and velocities
@@ -829,6 +831,7 @@ def create_cosinor_df_per_bee_time_period(
     )
     if velocities is None:
         return {None: dict(error="No velocities could be fetched..")}
+
 
     # get median velocity to reduce noise and increase residual independency
     if second > 0:
