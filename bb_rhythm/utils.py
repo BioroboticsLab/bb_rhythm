@@ -2,6 +2,7 @@ import os
 import bb_behavior.db
 import numpy as np
 import pandas as pd
+import scipy
 from scipy.ndimage import gaussian_filter
 
 
